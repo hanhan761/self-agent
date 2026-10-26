@@ -1,5 +1,7 @@
 # self-agent
 
+在线入口：[self-agent.matterswarm.com](https://self-agent.matterswarm.com)，使用账号登录或设备 API 密钥接入，无需 Tailscale。安装步骤见 [接入说明](docs/access.md)。
+
 个人智能体的长期知识库。一个私有网站和统一 API，让 Claude Code、Codex 与其他工具共享同一份可追溯的记忆。
 
 - 搜索、记录、修订和停止调用记忆。
@@ -96,4 +98,4 @@ project 为空表示个人空间，项目检索包含个人记忆。列表省略
 
 tests/mcp_smoke.mjs 对独立测试账号实测 stdio 初始化、工具发现、写入与召回。详见 [部署说明](docs/deployment.md)。网站自托管于 4090，默认私有访问，不开放匿名注册。
 
-公网接入与设备安装见 [接入说明](docs/access.md)。self-agent.matterswarm.com 的 DNS 尚待添加，完整公网切换与验收未完成。
+公网 DNS、HTTPS、登录、密钥读写与 MCP 已验证。验收记录见 [public-acceptance.json](docs/public-acceptance.json)。

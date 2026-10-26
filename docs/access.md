@@ -1,6 +1,6 @@
 # 接入与设备互联
 
-公网入口准备为 https://self-agent.matterswarm.com。客户端只需要服务地址和自己账号的设备密钥，不需要 Tailscale；手机可以直接浏览器登录。公网 DNS 和 HTTPS 验收完成前，此入口不算已上线。
+公网入口为 https://self-agent.matterswarm.com，DNS、TLS、登录、密钥读写与 MCP 已实测通过。客户端只需要服务地址和自己账号的设备密钥，不需要 Tailscale；手机可以直接浏览器登录。
 
 ## Windows 客户端
 
@@ -30,3 +30,5 @@
 DNS 记录：CNAME self-agent.matterswarm.com -> caa74e4b-9f75-40d1-822a-77a32d993b77.cfargotunnel.com，开启代理。此前该记录不存在。DNS 由账号持有人在控制台添加，不索取其 API Token。
 
 ops/public_access.py 默认只生成候选配置并校验，显式 --apply --confirm-name <相同域名> 才切换。切换前备份两个配置，持有项目发布锁，保留全部既有路由；异常时恢复配置和服务。回滚目录由执行输出记录。公网是否完成，以独立的 DNS、TLS、匿名拒绝、登录和密钥读写验收为准。
+
+若所在网络需要代理，可以在 connect 命令末尾显式指定 --proxy http://127.0.0.1:<本机代理端口>。普通网络不需要此参数。客户端保持 HTTPS 证书校验，不自动读取未知环境代理。当前控制机校园 DNS 对新域名仍返回旧的 NXDOMAIN，已使用其现有网络代理连接；公共 DNS 与公网 HTTPS 均已验证。

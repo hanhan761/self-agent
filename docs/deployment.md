@@ -7,9 +7,9 @@
 - releases/<revision> 保存不可变程序与开发机准备好的依赖，current 指向当前版本。
 - state 保存数据库和运行记录，权限 0700；config/server.json 保存配置和凭据引用，权限 0600。
 - 独立服务为 self-agent.service。
-- 私有入口为 http://100.95.110.75:8766，仅绑定 Tailscale 地址。
+- 当前入口为 https://self-agent.matterswarm.com；Cloudflare Tunnel 转发到 127.0.0.1:8766。
 
-访问需要相应 Tailnet。网络流量由 Tailscale 加密。以后若开放公网域名，必须单独配置 HTTPS、secure Cookie 与访问权限。当前不修改 DNS、Cloudflare Tunnel 或其他网站。
+用户侧无需 Tailnet。公网使用 HTTPS，网页登录 Cookie 启用 Secure/HttpOnly/SameSite，设备 API 使用独立 Bearer 密钥。SSH 运维仍使用已登记连接。原私有 HTTP 入口已停止监听；本次仅新增授权域名的隧道路由。
 
 ## 资源
 
@@ -49,3 +49,7 @@ Windows 控制器仅改变本项目的隐藏进程启动方式，不改全局 yu
 程序版本为 0874a65774ad24be49cea64b8083fccf88508dfd。机器可读验收记录见 [acceptance.json](acceptance.json)。53 项测试通过；真实 MCP、原生交晓智、加密导出恢复均已验证。关键词 Top5 为 30/30，同义改写为 9/10，不能据此保证一般查询准确率。
 
 依赖更新使用完整包；仅源码修复可在开发机运行 ops/build_patch.py，指定已验证基础版本。激活器检查完整继承文件清单，在独立 release 中硬链接未变文件、替换改动文件，再原子切换；不会原地修改旧版本。
+
+## 公网切换完成
+
+2026-10-26 已验证新域名、TLS、匿名数据请求 401、网页登录、密钥读写和 MCP。运行时仍为 78e83d3367b2，公网配置备份位于 /home/codex-admin/services/self-agent/config/public-rollouts/1793014327186777232-self-agent.matterswarm.com。回滚时在项目发布锁内恢复该目录的 server.before.json 和 tunnel.before.yml 到各自原路径，保持原属主和权限，再重启 self-agent 与 cloudflared；恢复前检查原域名路由及私有入口是否仍适用。客户端 URL 需相应恢复。没有数据格式迁移。

@@ -31,3 +31,8 @@ Private credentials, archive keys, source histories and test accounts are outsid
 - Added a validated, reversible public configuration helper; stage-only candidate passes cloudflared ingress validation. Public cutover has not been applied, preserving current clients until DNS exists.
 - External prerequisite: no DNS record exists and no local DNS API credential or CUA browser is available. Asked the user to add the exact proxied CNAME. No Cloudflare secrets were requested or accessed.
 - Once DNS is present: apply the prepared public configuration, verify TLS, authentication/key access and unrelated routes, observe service, then switch local client URL and login instructions.
+
+- User imported the CNAME. Two public resolvers returned the proxied addresses; applied the verified configuration and switched the origin to 127.0.0.1 with Secure cookies. Public TLS/root/health/login/key access, isolated write/read/search/forget and actual MCP stdio all passed.
+- Observed 179 seconds with zero restarts; origin/tunnel and three existing public sites returned 200, sampled unrelated services remained active. Retained configuration backups and the previous application release.
+- Updated this machine to the public HTTPS URL. Its campus DNS still returns cached NXDOMAIN; an explicit optional client proxy uses the already configured local network proxy without weakening certificate validation. Other devices can use the public URL directly.
+- 55 tests passed after the client connectivity change. Browser visual QA remains unavailable. Public verification metadata and installation instructions updated.

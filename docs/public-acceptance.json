@@ -5,14 +5,58 @@
   "automated_tests": 55,
   "origin_healthy": true,
   "existing_public_samples": {
+    "self-agent.matterswarm.com": 200,
     "matterswarm.com": 200,
     "cpa.matterswarm.com": 200,
     "ppt.matterswarm.com": 200
   },
   "candidate_ingress_validated": true,
-  "public_cutover_applied": false,
-  "dns_status": "missing_record",
-  "public_https_verified": false,
+  "public_cutover_applied": true,
+  "dns_status": "two_public_resolvers_confirmed",
+  "public_https_verified": true,
   "rollback_release": "/home/codex-admin/services/self-agent/releases/0874a65774ad",
-  "generated_at": "2026-10-26T11:28:09.308Z"
+  "generated_at": "2026-10-26T11:35:50.995Z",
+  "public_url": "https://self-agent.matterswarm.com",
+  "tls_certificate_verified": true,
+  "anonymous_data_status": 401,
+  "login_status": 200,
+  "cookie_flags": {
+    "secure": true,
+    "httponly": true,
+    "samesite": "strict"
+  },
+  "hsts": true,
+  "api_key_status": 200,
+  "isolated_user_write_read_search_forget": true,
+  "mcp": {
+    "initialize": true,
+    "tools": 5,
+    "remember_and_recall": true
+  },
+  "semantic_search": true,
+  "host_binding": "127.0.0.1",
+  "rollback_configuration": "/home/codex-admin/services/self-agent/config/public-rollouts/1793014327186777232-self-agent.matterswarm.com",
+  "observation": {
+    "NRestarts": "0",
+    "MemoryCurrent": "1100599296",
+    "ActiveState": "active",
+    "SubState": "running",
+    "observed_seconds": 179.3,
+    "host_binding": "127.0.0.1",
+    "secure_cookie": true,
+    "free_gib": 107.38,
+    "origin_status": 200,
+    "tunnel_status": 200,
+    "other_services": {
+      "qingyi-assistant.service": "active",
+      "jianli-ai.service": "active",
+      "endnote.service": "active"
+    }
+  },
+  "local_client": {
+    "url": "https://self-agent.matterswarm.com",
+    "uses_existing_network_proxy": true,
+    "reason": "Campus DNS still returns cached NXDOMAIN; public resolvers resolve successfully"
+  },
+  "browser_visual_qa": false
 }

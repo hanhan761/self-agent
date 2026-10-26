@@ -18,7 +18,7 @@ def main():
     init=sub.add_parser('init');init.add_argument('--username',default='admin')
     user=sub.add_parser('create-user');user.add_argument('username');user.add_argument('--admin',action='store_true')
     serve=sub.add_parser('serve');serve.add_argument('--host');serve.add_argument('--port',type=int)
-    connect=sub.add_parser('connect');connect.add_argument('--url',required=True);connect.add_argument('--token-file',required=True)
+    connect=sub.add_parser('connect');connect.add_argument('--url',required=True);connect.add_argument('--token-file',required=True);connect.add_argument('--proxy',help='Explicit optional HTTP(S) network proxy')
     install=sub.add_parser('install-client');install.add_argument('--client',choices=['claude','codex'],required=True)
     sub.add_parser('mcp')
     hook=sub.add_parser('hook');hook.add_argument('--client',choices=['claude','codex'],required=True)
@@ -59,12 +59,17 @@ def main():
         import httpx
         parsed=urlparse(args.url)
         if parsed.scheme not in ('http','https') or not parsed.hostname or parsed.username or parsed.password:raise ValueError('invalid_service_url')
+        if args.proxy:
+            proxy_url=urlparse(args.proxy)
+            if proxy_url.scheme not in ('http','https') or not proxy_url.hostname or proxy_url.username or proxy_url.password:raise ValueError('invalid_proxy_url')
         token_file=Path(args.token_file).resolve()
         token=token_file.read_text('utf-8').strip()
-        with httpx.Client(trust_env=False,follow_redirects=False) as client:
+        with httpx.Client(trust_env=False,follow_redirects=False,proxy=args.proxy) as client:
             response=client.get(args.url.rstrip('/')+'/api/me',headers={'Authorization':'Bearer '+token},timeout=10)
             response.raise_for_status()
-        private_file(private_root()/'client.json',json.dumps({'url':args.url.rstrip('/'),'token_file':str(token_file)}))
+        values={'url':args.url.rstrip('/'),'token_file':str(token_file)}
+        if args.proxy:values['proxy']=args.proxy
+        private_file(private_root()/'client.json',json.dumps(values))
         print(json.dumps({'connected':True,'username':response.json()['username']}))
     elif args.command=='install-client':
         from .install import install_client

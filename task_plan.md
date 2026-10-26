@@ -16,5 +16,5 @@ Remaining user-side product step: review the newly installed Codex hooks through
 
 1. Inspect current host, tunnel and DNS — complete.
 2. Test and deploy HTTPS support, stage ingress and rollback — complete (55 tests).
-3. User-owned CNAME record — waiting for external DNS configuration.
-4. Apply public cutover, verify outside Tailnet and switch client URL — pending DNS.
+3. User-owned CNAME record — complete; two public resolvers confirmed.
+4. Apply public cutover, verify public HTTPS/auth/MCP and switch client URL — complete.
