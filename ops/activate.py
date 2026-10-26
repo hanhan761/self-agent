@@ -26,6 +26,8 @@ def main():
     parser.add_argument('--service-file',required=True)
     parser.add_argument('--semantic',action='store_true')
     parser.add_argument('--cpa-auth',action='store_true')
+    parser.add_argument('--observe-seconds',type=int,default=60)
+    parser.add_argument('--public-url')
     args=parser.parse_args()
     artifact=Path(args.artifact).resolve()
     if not artifact.is_relative_to(BASE/'incoming'):raise ValueError('artifact_outside_incoming')
@@ -136,7 +138,24 @@ s.close()
                 except Exception:
                     if attempt==29:raise
                     time.sleep(1)
-            record={'active_release':revision,'artifact_sha256':args.sha256,'rollback_release':str(previous) if previous else None,
+            # Hold the existing release lock through the health observation window.
+            baseline=command(['systemctl','show','self-agent.service','-p','NRestarts','--value']).stdout.strip()
+            observed=time.monotonic()
+            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            def public_health():
+                if args.public_url:
+                    request=urllib.request.Request(args.public_url,headers={'User-Agent':'SelfAgent-Connector/0.1'})
+                    with opener.open(request,timeout=10) as response:
+                        if json.load(response).get('status')!='ok':raise RuntimeError('public_health_failed')
+            public_health()
+            while time.monotonic()-observed<max(60,args.observe_seconds):
+                with opener.open(health,timeout=3) as response:
+                    if json.load(response).get('status')!='ok':raise RuntimeError('origin_health_failed')
+                if command(['systemctl','is-active','self-agent.service']).stdout.strip()!='active':raise RuntimeError('service_not_active')
+                if command(['systemctl','show','self-agent.service','-p','NRestarts','--value']).stdout.strip()!=baseline:raise RuntimeError('unexpected_service_restart')
+                time.sleep(min(5,max(0,max(60,args.observe_seconds)-(time.monotonic()-observed))))
+            public_health()
+            record={'observation_seconds':round(time.monotonic()-observed,1),'public_health':'ok' if args.public_url else 'not_checked','active_release':revision,'artifact_sha256':args.sha256,'rollback_release':str(previous) if previous else None,
                     'origin_health':'ok','host_binding':config['host'],'runtime_build':False}
             (state/'deployment.json').write_text(json.dumps(record,indent=2))
             print(json.dumps(record))
