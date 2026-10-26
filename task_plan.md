@@ -40,6 +40,6 @@ Remaining user-side product step: review the newly installed Codex hooks through
 2. Transactional reconciliation, expiration, provenance and reversible cleanup — complete.
 3. Compatible APIs, website, v2 backup/restore and client changes — complete.
 4. Regression tests and real model acceptance — complete (87 tests, 10 confirmed native calls across six cases). MCP/public acceptance follows deployment.
-5. Off-host release, current-space cleanup, local upgrade and verification — pending.
+5. Off-host release, current-space cleanup, local upgrade and verification — complete. Final release 49ca2b97056d; 61.5-second locked observation, actual public Hook loop and current-device MCP passed. Current paired space contained zero old memories. Browser visual verification unavailable (no CUA browser surfaces).
 
 Defaults: explicit changes auto-replace; personal preferences cross projects; legacy cleanup is reversible; explicit deadlines expire; facts decay at 180-day half-life with 0.8 floor. No guessed fact activation or automatic forgotten-memory resurrection.

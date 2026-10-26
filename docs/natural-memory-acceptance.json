@@ -58,7 +58,7 @@
     "test_data_isolated": true
   },
   "staged_source_tree": "cce61b013a6fcf2668b5c85835397606004409a0dc68a00223e83c51b856f20d",
-  "browser_visual_verification": "not yet performed",
+  "browser_visual_verification": "unavailable: CUA returned no apps or browsers",
   "interactive_host_hook_trust": "requires user review",
   "public_hook_acceptance": {
     "passed": true,
@@ -72,5 +72,47 @@
     "isolated_identity": true,
     "actual_hidden_hook_processes": true,
     "interactive_host_trust_not_bypassed": true
+  },
+  "release": {
+    "observation_seconds": 61.5,
+    "public_health": "ok",
+    "active_release": "49ca2b97056d1f1cc572bc655cf687cc9c70e0b3",
+    "artifact_sha256": "a06bfa49904b2e3c38a5a45eaed719f90a49b89f12cadec0f62a10525cfff16f",
+    "rollback_release": "/home/codex-admin/services/self-agent/releases/c26862cdb4c9",
+    "origin_health": "ok",
+    "host_binding": "127.0.0.1",
+    "runtime_build": false,
+    "service": "NRestarts=0\nActiveState=active\nSubState=running",
+    "cloudflared": "active",
+    "cpa_sha256": "f20567898f7e11e878c884e7803fb12b5310a2929464b1590f95c63d69a35e13",
+    "config_sha256": "54822f41df5ac112f97926e48f9f08aafc682593fbd26ec4a6b4304e03d6c1af",
+    "disk_free_gib": 106.7492561340332,
+    "backup_present": true
+  },
+  "mcp": {
+    "passed": true,
+    "tools": [
+      "memory_search",
+      "memory_get",
+      "memory_remember",
+      "memory_update",
+      "memory_forget"
+    ],
+    "authenticatedSearch": true,
+    "optionalDeadlineSupported": true,
+    "resultCount": 0
+  },
+  "client_zip_sha256": "b5a76f459f9d66c6c352fb5826708c997070691258ff6e877d9b3a63fabc8b7b",
+  "current_space_cleanup": {
+    "state": "done",
+    "processed": 0,
+    "existing_memories": 0
+  },
+  "public_http": {
+    "https://self-agent.matterswarm.com/healthz": 200,
+    "https://self-agent.matterswarm.com/": 200,
+    "https://self-agent.matterswarm.com/assets/app.js": 200,
+    "https://cpa.matterswarm.com/guide": 200,
+    "https://matterswarm.com": 200
   }
 }
