@@ -43,6 +43,7 @@ def main():
             raise ValueError('Proxy must be HTTP(S), without embedded credentials')
     opener=urllib.request.build_opener(NoRedirect(),urllib.request.HTTPSHandler(context=ssl.create_default_context()),
                                       urllib.request.ProxyHandler({'http':proxy,'https':proxy} if proxy else {}))
+    opener.addheaders=[('User-Agent','SelfAgent-Connector/0.1')]
     def download(relative,limit):
         with opener.open(origin+relative,timeout=45) as response:
             data=response.read(limit+1)
