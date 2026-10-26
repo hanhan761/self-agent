@@ -1,0 +1,95 @@
+{
+  "release": "0874a65774ad24be49cea64b8083fccf88508dfd",
+  "generated_at": "2026-10-26T08:11:54.661Z",
+  "tests": {
+    "pytest_passed": 53,
+    "pytest_total": 53,
+    "mcp_stdio": {
+      "initialize": true,
+      "tools": 5,
+      "remote_remember_and_recall": true
+    },
+    "native_xjtu": {
+      "model": "qwen3.8-max",
+      "complete_extraction": true,
+      "grounded_answer": true
+    },
+    "retrieval": {
+      "keyword_top5": {
+        "hits": 30,
+        "total": 30
+      },
+      "paraphrase_top5": {
+        "hits": 9,
+        "total": 10,
+        "misses": [
+          "数据库"
+        ]
+      },
+      "encoder": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+      "device": "cpu",
+      "projection_pending": 0
+    },
+    "backup": {
+      "local_history_files_verified": 352,
+      "server_memory_export_verified": 17,
+      "remote_idempotent_restore": true
+    },
+    "browser_visual_qa": {
+      "completed": false,
+      "reason": "No enabled CUA browser surfaces"
+    }
+  },
+  "paraphrases": [
+    {
+      "expected_title": "中文写作",
+      "query": "写给我看的说明材料，应该选什么语言？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "无弹窗",
+      "query": "自动任务运行时，怎样避免打扰桌面？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "备份",
+      "query": "多久存一份资料副本？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "数据库",
+      "query": "持久化的信息放进哪一种存储引擎？",
+      "top5_hit": false
+    },
+    {
+      "expected_title": "分离",
+      "query": "两个工程的上下文能否混在一起？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "回滚",
+      "query": "新版本出了问题，如何回到之前能用的那一版？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "安全",
+      "query": "认证口令应当放在哪里才安全？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "事实",
+      "query": "机器人还没有核实的推断，能直接当成我的个人信息吗？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "迁移",
+      "query": "更换登录身份以后，之前积累的材料还能接着使用吗？",
+      "top5_hit": true
+    },
+    {
+      "expected_title": "恢复",
+      "query": "把保存的副本导回来后，怎样确认没有损坏？",
+      "top5_hit": true
+    }
+  ]
+}

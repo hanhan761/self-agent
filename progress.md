@@ -1,23 +1,25 @@
 # Progress
 
-- Implementation started; filesystem and current environment inspected.
+## Completed 2026-10-26
 
-- Initial README commit pushed successfully. Core dependencies installed. Built canonical SQLite store, native XJTU provider and optional rebuildable Mem0 projection.
-- Corrected initial SQL string escaping and placeholder counts during compile verification.
+- Initialized main, linked hanhan761/self-agent and verified the initial push.
+- Read the authorized recent Chen Yan conversation; implemented independent, portable personal/project memory with provenance, revisions and candidate review.
+- Deployed the private website/API at http://100.95.110.75:8766 on the registered 4090 host, using its existing native XJTU account for all generation and extraction.
+- Prepared Linux dependencies off-host; activated immutable verified releases without running build/install tools on the server. Reused the complete cached multilingual MiniLM encoder on CPU; downloaded no model weights.
+- Active application release: 0874a65774ad24be49cea64b8083fccf88508dfd. Latest observation: active/running for 562 seconds, zero restarts, about 1.14 GiB memory, 108.89 GiB disk free, zero unfinished jobs and zero pending projections. Three sampled unrelated services remained active.
+- Installed Claude Code and Codex MCP/hooks while preserving and backing up existing configuration. Codex hook trust remains controlled by the product /hooks UI.
+- Encrypted and independently verified 352 local history/rule files (about 9.3 GB raw). Imported only 2 related sources; skipped 279 unrelated/unattributed files. Both extraction jobs completed, producing 17 candidates for user review.
+- Reconciled one failed extraction from its privately retained complete provider response after fixing decoded evidence validation; no extra generation was needed.
+- Verified an encrypted portable export containing 17 memories and 2 sources, excluding authentication tables. Live synthetic-account restore preserved existing memories without duplication.
+- 53 pytest checks passed. JavaScript syntax passed. Live stdio MCP initialized, exposed 5 tools, and wrote/recalled remote memory. The native qwen3.8-max route completed extraction and a grounded answer.
+- Real isolated retrieval: keyword Top5 30/30; paraphrase Top5 9/10, with one database paraphrase missed. Semantic projection is healthy; this small synthetic check is not a general accuracy guarantee.
+- Browser visual QA unavailable: CUA inventory had no enabled browsers. This remains explicitly unverified.
 
-- Website UI and authenticated API implemented; 49 checks pass, including 30 Chinese keyword retrieval scenarios. Fixed stale-title indexing and stale-backup resurrection.
-- Added MCP 2.3 MCPServer bridge, hidden Windows hooks, encrypted local backups and bounded history import.
-- SDK migration: FastMCP was removed in MCP 2.x; switched to MCPServer after inspecting the installed SDK.
-- Off-host Jieba wheel initially lacked bdist_wheel; installed wheel locally and built successfully.
-- Browser QA unavailable: CUA inventory has no browser surfaces; no alternate browser automation was used.
-- Current native Qwen model grant verified; generation is not yet verified.
+## Compatibility fixes validated
 
-- Encrypted 352 historical files (about 9.3 GB raw) into a private archive; independent decryption and per-file checksum verification passed.
-- Live MCP stdio test passed: initialize, 5 tools, remember and recall.
-- Corrected Windows private-root fallback for hidden processes without LOCALAPPDATA.
-- CPU semantic dependency preparation hit a TLS failure at the official PyTorch index; core service artifacts are unaffected.
+- MCP 2.3 MCPServer API; Mem0 2.2.1 scoped filters/top_k; narrowly scoped custom LLM config; writable MEM0_DIR under the protected service state.
+- Windows private-root fallback when hidden child processes lack LOCALAPPDATA; hidden child process launches; normalized serialized evidence and one bounded formatting repair after complete replies.
 
-- 4090 first release activated from a 29 MB off-host artifact. Native Qwen extraction completed; remote MCP read/write passed. More than 60 seconds observed, zero restarts, unrelated sampled services remain active.
-- Claude/Codex configurations installed with originals backed up; Codex trust review remains product-controlled.
-- Selected history imported: 2 related files, 279 unrelated/unattributed skipped. One extraction failed validation; adding one bounded repair after confirmed complete responses.
-- BGE-M3 cache contains metadata only. A complete existing multilingual MiniLM encoder is available; use it for the first CPU semantic index, without downloading model weights. Official CPU runtime wheel downloaded off-host and digest verified.
+Private credentials, archive keys, source histories and test accounts are outside the repository.
+
+- Deployed application commits were pushed successfully to origin/main. The owned local preview was stopped after verification; the disposable bootstrap credential copy was removed. Permanent private login and backup keys remain available.

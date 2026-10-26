@@ -1,9 +1,13 @@
 # Implementation plan
 
 1. Repository initialization and first push — complete.
-2. Central 4090 API, website, native XJTU provider, memory lifecycle — in progress.
-3. MCP, client hooks and allowlisted backup/import — pending.
-4. Tests, browser verification, reproducible release and final push — pending.
-5. Deployment — gated: root filesystem has 111 GiB free, below yun 15% reserve; asked for an alternative mounted data disk. No production mutation performed.
+2. Central 4090 API, private website, native XJTU provider and memory lifecycle — complete.
+3. MCP, client hooks, encrypted backup and selected history import — complete.
+4. Automated checks, real API/MCP/provider acceptance and immutable deployment — complete.
+5. Final documentation and GitHub synchronization — complete.
 
-Scope: private authenticated website and central API on 4090. Stable user identities and separate project scope. Local controller handles client hooks/import. Secrets and data remain outside Git.
+Scope: a private authenticated website and central API on 4090. Generation uses the existing XJTU account; no generative model is deployed. SQLite is authoritative; CPU semantic indexes are rebuildable. Secrets and private data remain outside Git.
+
+Acceptance: 53 tests passed; real MCP read/write, native extraction/answer and encrypted restore passed. Keyword Top5 30/30; paraphrase Top5 9/10. See docs/acceptance.json.
+
+Remaining user-side product step: review the newly installed Codex hooks through /hooks and reload clients. Browser visual QA could not run because CUA exposed no browser surface; API checks do not substitute for it.
