@@ -13,6 +13,7 @@ class Index:
         if not self.config.semantic:return
         with self.lock:
             try:
+                os.environ['MEM0_DIR']=str(self.config.data_dir/'mem0')
                 os.environ['MEM0_TELEMETRY']='false'
                 os.environ['ANONYMIZED_TELEMETRY']='false'
                 os.environ['HF_HUB_OFFLINE']='1'

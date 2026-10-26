@@ -41,7 +41,19 @@ def main():
             if not revision.isalnum():raise ValueError('invalid_release_id')
             release=BASE/'releases'/revision[:12]
             if release.exists():raise ValueError('release_already_exists')
-            release.mkdir(parents=True)
+            base_revision=manifest.get('base_release')
+            if base_revision:
+                if not base_revision.isalnum():raise ValueError('invalid_base_release')
+                parent=BASE/'releases'/base_revision[:12]
+                parent_manifest=json.loads((parent/'release.json').read_text())
+                if parent_manifest['source_revision']!=base_revision:raise ValueError('base_release_mismatch')
+                # Hardlink immutable files; every changed path is unlinked before replacement.
+                shutil.copytree(parent,release,copy_function=os.link)
+                for inherited in list(release.rglob('*')):
+                    if inherited.is_file() and inherited.name!='release.json' and inherited.relative_to(release).as_posix() not in manifest['files']:
+                        inherited.unlink()
+            else:
+                release.mkdir(parents=True)
             for item in archive.infolist():
                 relative=Path(item.filename)
                 if relative.is_absolute() or '..' in relative.parts:raise ValueError('unsafe_archive_member')
@@ -49,6 +61,7 @@ def main():
                 content=archive.read(item)
                 if item.filename!='release.json' and hashlib.sha256(content).hexdigest()!=manifest['files'].get(item.filename):raise ValueError('release_file_digest_mismatch')
                 target=release/relative;target.parent.mkdir(parents=True,exist_ok=True)
+                if target.exists():target.unlink()
                 target.write_bytes(content)
         env=os.environ.copy()
         env.update(PYTHONPATH=str(release/'vendor')+':'+str(release),
