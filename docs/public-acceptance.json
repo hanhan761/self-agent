@@ -1,0 +1,18 @@
+{
+  "hostname": "self-agent.matterswarm.com",
+  "source_revision": "78e83d3367b2a6c2d068093a1bae9de51a94cacf",
+  "artifact_sha256": "2e4a9b5d1f9794ec80bd150aae320e16789969a90d6da1f4da87eea63de1f56e",
+  "automated_tests": 55,
+  "origin_healthy": true,
+  "existing_public_samples": {
+    "matterswarm.com": 200,
+    "cpa.matterswarm.com": 200,
+    "ppt.matterswarm.com": 200
+  },
+  "candidate_ingress_validated": true,
+  "public_cutover_applied": false,
+  "dns_status": "missing_record",
+  "public_https_verified": false,
+  "rollback_release": "/home/codex-admin/services/self-agent/releases/0874a65774ad",
+  "generated_at": "2026-10-26T11:28:09.308Z"
+}

@@ -95,3 +95,5 @@ project 为空表示个人空间，项目检索包含个人记忆。列表省略
     python -m pytest -q
 
 tests/mcp_smoke.mjs 对独立测试账号实测 stdio 初始化、工具发现、写入与召回。详见 [部署说明](docs/deployment.md)。网站自托管于 4090，默认私有访问，不开放匿名注册。
+
+公网接入与设备安装见 [接入说明](docs/access.md)。self-agent.matterswarm.com 的 DNS 尚待添加，完整公网切换与验收未完成。

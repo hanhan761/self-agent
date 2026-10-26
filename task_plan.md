@@ -11,3 +11,10 @@ Scope: a private authenticated website and central API on 4090. Generation uses 
 Acceptance: 53 tests passed; real MCP read/write, native extraction/answer and encrypted restore passed. Keyword Top5 30/30; paraphrase Top5 9/10. See docs/acceptance.json.
 
 Remaining user-side product step: review the newly installed Codex hooks through /hooks and reload clients. Browser visual QA could not run because CUA exposed no browser surface; API checks do not substitute for it.
+
+## Public HTTPS follow-up
+
+1. Inspect current host, tunnel and DNS — complete.
+2. Test and deploy HTTPS support, stage ingress and rollback — complete (55 tests).
+3. User-owned CNAME record — waiting for external DNS configuration.
+4. Apply public cutover, verify outside Tailnet and switch client URL — pending DNS.

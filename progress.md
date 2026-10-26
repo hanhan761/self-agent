@@ -23,3 +23,11 @@
 Private credentials, archive keys, source histories and test accounts are outside the repository.
 
 - Deployed application commits were pushed successfully to origin/main. The owned local preview was stopped after verification; the disposable bootstrap credential copy was removed. Permanent private login and backup keys remain available.
+
+## HTTPS public access — 2026-10-26
+
+- User selected self-agent.matterswarm.com. The 4090 origin and existing Cloudflare Tunnel are healthy; three existing public routes returned 200.
+- Built and deployed release 78e83d3367b2 off-host, retaining 0874a65774ad for rollback. Tests: 55 passed, including HTTPS login/key access and preserving existing routes.
+- Added a validated, reversible public configuration helper; stage-only candidate passes cloudflared ingress validation. Public cutover has not been applied, preserving current clients until DNS exists.
+- External prerequisite: no DNS record exists and no local DNS API credential or CUA browser is available. Asked the user to add the exact proxied CNAME. No Cloudflare secrets were requested or accessed.
+- Once DNS is present: apply the prepared public configuration, verify TLS, authentication/key access and unrelated routes, observe service, then switch local client URL and login instructions.
