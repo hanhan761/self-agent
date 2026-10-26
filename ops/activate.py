@@ -63,6 +63,10 @@ def main():
                 target=release/relative;target.parent.mkdir(parents=True,exist_ok=True)
                 if target.exists():target.unlink()
                 target.write_bytes(content)
+        for relative,expected in manifest['files'].items():
+            path=release/relative
+            if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=expected:
+                raise ValueError('inherited_release_digest_mismatch')
         env=os.environ.copy()
         env.update(PYTHONPATH=str(release/'vendor')+':'+str(release),
                    PYTHONDONTWRITEBYTECODE='1',SELF_AGENT_DATA=str(BASE/'state'),
