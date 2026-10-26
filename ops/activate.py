@@ -76,6 +76,10 @@ def main():
         config_file=BASE/'config/server.json'
         config_file.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
         old_config=config_file.read_bytes() if config_file.exists() else None
+        if old_config:
+            config_backups=config_file.parent/'backups';config_backups.mkdir(exist_ok=True,mode=0o700)
+            saved_config=config_backups/('before-'+revision[:12]+'.json')
+            saved_config.write_bytes(old_config);saved_config.chmod(0o600)
         config=json.loads(old_config) if old_config else {
             'host':'100.95.110.75','port':8766,'semantic':False,'allow_campus_http':True,
             'xjtu_native_config':'/home/codex-admin/services/jiaoxiaozhi-router/experiment-native.json',

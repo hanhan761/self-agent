@@ -24,5 +24,5 @@ Remaining user-side product step: review the newly installed Codex hooks through
 1. Inspect CPA guide, key registry and policy contract — complete.
 2. Read-only key authentication, isolation, revocation and one-use pairing — complete.
 3. Key login UI, Windows setup bundle and hidden-input CLI — complete.
-4. Checks — 63 tests passed; JavaScript and PowerShell syntax verified.
-5. Immutable deployment and live isolated setup/MCP verification — in progress.
+4. Checks — 64 tests passed; JavaScript and downloaded PowerShell syntax verified.
+5. Immutable deployment and live isolated setup/MCP verification — complete.

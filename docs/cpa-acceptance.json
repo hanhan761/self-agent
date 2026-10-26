@@ -1,0 +1,57 @@
+{
+  "release": "c4f7a42b2aa2b738da9e5cd89c9e025ece47cc88",
+  "artifact_sha256": "9b075cea2f1839240ffe6b93aa3350c01c5fb98350db0675729d1f867589cd68",
+  "automated_tests": 64,
+  "syntax": {
+    "javascript": true,
+    "powershell_generic": true,
+    "powershell_downloaded_pairing_package": true
+  },
+  "production_registry": {
+    "configured": true,
+    "active_identities": 18,
+    "registered_key_recognized": true,
+    "unknown_key_rejected": true
+  },
+  "live_onboarding": {
+    "public_cpa_option": true,
+    "invalid_key_rejected": true,
+    "client_archive_sha256": "065884a0697bce0937debd4c73524538833ae5951efc3e57d7bd470195c8cb74",
+    "paired_installer": true,
+    "automatic_setup": true,
+    "configured_clients": [
+      "codex",
+      "claude"
+    ],
+    "replay_rejected": true
+  },
+  "mcp": {
+    "initialized": true,
+    "tools": 5,
+    "remember_and_recall": true
+  },
+  "single_use_pairing_replay_rejected": true,
+  "source_cpa_configuration_unchanged": true,
+  "source_cpa_containers_not_restarted": true,
+  "observation": {
+    "NRestarts": "0",
+    "MemoryCurrent": "1094459392",
+    "ActiveState": "active",
+    "SubState": "running",
+    "observed_seconds": 176.6
+  },
+  "origin_status": 200,
+  "public_https_verified": true,
+  "semantic_search": true,
+  "browser_visual_qa": false,
+  "rollback_release": "/home/codex-admin/services/self-agent/releases/78e83d3367b2",
+  "windows_python_requirement": "3.11+",
+  "full_powershell_install_execution": false,
+  "full_powershell_install_note": "Downloaded script parsed; real setup exchange/configuration and MCP verified in an isolated home. No browser surface available.",
+  "generated_at": "2026-10-26T12:00:03.201Z",
+  "rollback_config": {
+    "rollback_config": "/home/codex-admin/services/self-agent/config/backups/before-c4f7a42b2aa2.json",
+    "matches_prior_public_configuration": true,
+    "old_release_config_verified": "prior_config_load_verified"
+  }
+}

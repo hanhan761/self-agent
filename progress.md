@@ -36,3 +36,13 @@ Private credentials, archive keys, source histories and test accounts are outsid
 - Observed 179 seconds with zero restarts; origin/tunnel and three existing public sites returned 200, sampled unrelated services remained active. Retained configuration backups and the previous application release.
 - Updated this machine to the public HTTPS URL. Its campus DNS still returns cached NXDOMAIN; an explicit optional client proxy uses the already configured local network proxy without weakening certificate validation. Other devices can use the public URL directly.
 - 55 tests passed after the client connectivity change. Browser visual QA remains unavailable. Public verification metadata and installation instructions updated.
+
+## CPA key login and easier onboarding — completed
+
+- Confirmed the intended service is https://cpa.matterswarm.com/guide. Its existing registry and permission store are read-only identity sources. No CPA original key is copied into self-agent state, an installer, logs or Git. No inference call is used to validate login.
+- Added CPA key login, same-key isolated workspaces, explicit linking to an existing space, and revocation checks for sessions and derived device keys. CPA authentication never gains administrator privileges. Empty auto-created spaces can be deliberately linked; occupied spaces cannot be overwritten.
+- Added ten-minute, one-use pairing and a Windows download package. Hidden-input setup exchanges a CPA key for a separate device key, writes its private file, and merges client settings automatically. Python 3.11+ remains a prerequisite; Codex hooks still require product trust review.
+- Built client source ZIP and checksums off-host; deployed c4f7a42b2aa2 with artifact SHA-256 9b075cea2f1839240ffe6b93aa3350c01c5fb98350db0675729d1f867589cd68, retaining 78e83d3367b2. Registry loads 18 active identities and recognizes registered credentials in-process without exposing them.
+- 64 tests passed, including account/project isolation, source-key disable/removal, fail-closed registry errors, administrator privilege protection, single-use/expired pairing and preserving existing client config.
+- Live public package download/hash verification, invalid-key rejection, automatic setup for both clients in an isolated home, pairing replay rejection and stdio MCP write/recall passed. Downloaded PowerShell parsed successfully; the entire dependency-installing PowerShell script was not executed against the real user profile. Browser visual QA remains unavailable.
+- CPA config and permission file checksums and source-container start times remained identical. Existing sampled websites and services remained healthy; source generation routing remains native XJTU.

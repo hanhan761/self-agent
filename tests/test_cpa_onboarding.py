@@ -130,3 +130,23 @@ def test_empty_auto_created_space_can_link_without_losing_devices(cpa_service):
     assert c.get('/api/me').json()['id']==uid
     linked=c.get('/api/me',headers=bearer(device)).json()
     assert linked['id']==uid and linked['admin'] is False
+
+
+def test_setup_migrates_only_verified_owned_runner(tmp_path,monkeypatch):
+    from self_agent.install import install_client
+    monkeypatch.setenv('LOCALAPPDATA',str(tmp_path/'private'))
+    repo=Path(__file__).resolve().parents[1]
+    old=tmp_path/'old-client/scripts';old.mkdir(parents=True)
+    for name in ['hook_runner.py','mcp_runner.py']:
+        (old/name).write_bytes((repo/'scripts'/name).read_bytes())
+    home=tmp_path/'home';(home/'.claude').mkdir(parents=True)
+    command=json.dumps('old-python')+' '+json.dumps(str(old/'hook_runner.py'))+' claude'
+    (home/'.claude.json').write_text(json.dumps({'mcpServers':{'self_agent':{'command':'old-python','args':[str(old/'mcp_runner.py')]},'other':{'command':'keep'}}}),'utf-8')
+    (home/'.claude/settings.json').write_text(json.dumps({'hooks':{'Stop':[{'hooks':[{'type':'command','command':command}]},{'hooks':[{'type':'command','command':'keep-this-hook'}]}]}}),'utf-8')
+    install_client('claude',home=home)
+    config=json.loads((home/'.claude.json').read_text('utf-8'))
+    hooks=json.loads((home/'.claude/settings.json').read_text('utf-8'))['hooks']['Stop']
+    assert config['mcpServers']['other']['command']=='keep'
+    assert config['mcpServers']['self_agent']['args']==[str(repo/'scripts/mcp_runner.py')]
+    assert len(hooks)==2
+    assert any(h['hooks'][0]['command']=='keep-this-hook' for h in hooks)
