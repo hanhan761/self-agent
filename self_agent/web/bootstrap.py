@@ -71,9 +71,17 @@ def main():
             if not target.is_relative_to(source.resolve()) or ':' in item.filename or (item.external_attr>>16)&0o170000==0o120000:
                 raise RuntimeError('Unsafe archive member')
         zipped.extractall(source)
+    child_environment=os.environ.copy()
+    child_environment['PIP_DISABLE_PIP_VERSION_CHECK']='1'
+    package_index=settings.get('package_index') or child_environment.get('PIP_INDEX_URL') or 'https://pypi.tuna.tsinghua.edu.cn/simple'
+    index=urllib.parse.urlparse(package_index)
+    if index.scheme!='https' or not index.hostname or index.username or index.password:
+        raise ValueError('Package index must use HTTPS without embedded credentials')
+    child_environment['PIP_INDEX_URL']=package_index
+    if proxy:child_environment.update(HTTP_PROXY=proxy,HTTPS_PROXY=proxy,PIP_PROXY=proxy)
     flags={'creationflags':subprocess.CREATE_NO_WINDOW} if os.name=='nt' else {}
     def run(arguments,body=None,timeout=600):
-        result=subprocess.run(arguments,input=body,capture_output=True,text=True,timeout=timeout,**flags)
+        result=subprocess.run(arguments,input=body,capture_output=True,text=True,timeout=timeout,env=child_environment,**flags)
         if result.returncode:
             # setup deliberately emits no key or request body in errors.
             raise RuntimeError('Setup step failed: '+result.stderr[-1500:])

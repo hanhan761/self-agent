@@ -30,6 +30,8 @@ or search for a CPA key. Do not send the code to another host.
    {"service_url":"ORIGIN","pair_code":"USER_SUPPLIED_CODE","client":"auto"}
    client may also be codex, claude or both when the user chose a specific tool.
    Optional proxy is an explicit HTTP(S) proxy URL with no embedded credentials.
+   Dependencies use an existing PIP_INDEX_URL or the Tsinghua HTTPS PyPI mirror;
+   package_index may explicitly select another HTTPS index. Keep TLS verification.
 4. The bootstrap verifies the client ZIP, creates a private environment, installs
    the bridge, redeems the code for a separate device key and preserves/merges MCP
    and hook configuration. The long-lived device key stays in the private user
