@@ -126,7 +126,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
     def overview(user=Depends(current)):
         result=store.overview(user['id'])
         result['provider']={'configured':engine.provider.configured,'model':config.xjtu_model,'name':'交晓智原生 API'}
-        result['search']={'semantic':engine.index.memory is not None,'state':engine.index.error,'keyword':True}
+        result['search']={'semantic':engine.index.memory is not None and not engine.index.error,'state':engine.index.error,'keyword':True}
         return result
 
     @app.get('/v1/memories')

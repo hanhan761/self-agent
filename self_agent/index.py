@@ -44,7 +44,7 @@ class Index:
                 mid=row['id']
                 try:
                     scope=row['user_id']+':'+row['project']
-                    existing=self.memory.get_all(user_id=scope,limit=10000)
+                    existing=self.memory.get_all(filters={'user_id':scope,'canonical_id':mid},top_k=10)
                     existing=existing.get('results',[]) if isinstance(existing,dict) else existing
                     for item in existing:
                         if item.get('metadata',{}).get('canonical_id')==mid:self.memory.delete(item['id'])
@@ -57,6 +57,8 @@ class Index:
                     with self.store.tx() as db:db.execute('INSERT OR REPLACE INTO projections VALUES(?,?,?,?)',(mid,row['version'],external,''))
                 except Exception as exc:
                     self.error=type(exc).__name__
+                    import traceback
+                    (self.config.data_dir/'index-error.log').write_text(traceback.format_exc(),'utf-8')
                     return
             self.error=''
 
@@ -65,7 +67,7 @@ class Index:
         result=[]
         with self.lock:
             for scope in dict.fromkeys([uid+':',uid+':'+project]):
-                found=self.memory.search(query,user_id=scope,limit=20)
+                found=self.memory.search(query,filters={'user_id':scope},top_k=20)
                 items=found.get('results',[]) if isinstance(found,dict) else found
                 result.extend(x.get('metadata',{}).get('canonical_id') for x in items)
         return result

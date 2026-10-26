@@ -245,3 +245,31 @@ def test_extraction_quotes_match_decoded_transcript(tmp_path):
     provider=XjtuProvider(Config(tmp_path))
     provider.complete=lambda messages:reply
     assert provider.extract(source)[0]['explicit'] is True
+
+
+def test_mem0_projection_uses_scoped_v2_contract(tmp_path):
+    from self_agent.store import Store
+    from self_agent.auth import Auth
+    from self_agent.index import Index
+    store=Store(tmp_path/'data.sqlite3')
+    uid=Auth(store).create_user('test-user','long-enough-password')
+    item=store.add(uid,'project','可追溯的知识')
+    calls=[]
+    class MemoryV2:
+        def get_all(self,*,filters,top_k):
+            assert filters['user_id']==uid+':project'
+            assert filters['canonical_id']==item['id']
+            return {'results':[]}
+        def add(self,content,*,user_id,infer,metadata):
+            assert infer is False and user_id==uid+':project'
+            calls.append(metadata)
+            return {'results':[{'id':'external-1'}]}
+        def search(self,query,*,filters,top_k):
+            assert filters['user_id'] in (uid+':',uid+':project')
+            return {'results':[{'metadata':{'canonical_id':item['id']}}]}
+    index=Index(Config(tmp_path),store);index.memory=MemoryV2()
+    index.sync()
+    assert index.error==''
+    assert calls[0]['canonical_id']==item['id']
+    assert item['id'] in index.search_ids(uid,'知识','project')
+    store.close()
