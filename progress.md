@@ -46,3 +46,12 @@ Private credentials, archive keys, source histories and test accounts are outsid
 - 64 tests passed, including account/project isolation, source-key disable/removal, fail-closed registry errors, administrator privilege protection, single-use/expired pairing and preserving existing client config.
 - Live public package download/hash verification, invalid-key rejection, automatic setup for both clients in an isolated home, pairing replay rejection and stdio MCP write/recall passed. Downloaded PowerShell parsed successfully; the entire dependency-installing PowerShell script was not executed against the real user profile. Browser visual QA remains unavailable.
 - CPA config and permission file checksums and source-container start times remained identical. Existing sampled websites and services remained healthy; source generation routing remains native XJTU.
+
+## Paste-to-agent onboarding — completed
+
+- CPA key login now opens the instruction generator. The user copies one short instruction to a local tool-using agent; it contains a ten-minute one-use pairing code, not the CPA key. The ZIP path is retained only as a fallback.
+- Public guide and SHA-256 bootstrap metadata let the agent identify the OS/client and perform private setup. Pairing data travels over stdin and JSON bodies, never URL/process arguments. Codex trust review remains user-controlled.
+- Complete live bootstrap exposed two network issues: the ingress rejects the default Python-urllib user agent, and default PyPI was unreachable in the isolated campus-network profile. Fixed with an honest connector user agent, proxy inheritance for subprocesses, and an HTTPS package index honoring explicit/existing settings (otherwise the Tsinghua mirror). Certificate checks remain enabled.
+- 68 tests passed. Published final release edc17acfb7e0 from immutable artifact a9a1c3b33e376a69f77f3119860084290e8be48bf85b4a6cb36ef0bf56872a3d.
+- Fully executed the final published bootstrap in an isolated Windows user profile in 37.8 seconds: downloaded/checksummed source, installed dependencies in a new environment, detected both clients, preserved the original model setting, paired and authenticated search successfully. Actual stdio MCP discovered five tools and wrote/recalled synthetic memory.
+- Observed the service for 86.7 seconds with zero restarts; origin, tunnel, public login/key access and sampled existing sites passed. CPA source configuration/checksums and container start times remained unchanged. Browser visual QA remains unavailable.

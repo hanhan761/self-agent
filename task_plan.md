@@ -31,5 +31,5 @@ Remaining user-side product step: review the newly installed Codex hooks through
 
 1. Generate a one-use instruction immediately after CPA login — complete.
 2. Public guide/checksum and automatic client bootstrap — complete.
-3. Tests and off-host release — in progress.
-4. Live full bootstrap in an isolated profile, MCP acceptance, final push — pending.
+3. Tests and off-host release — complete (68 tests).
+4. Live full bootstrap in an isolated profile, MCP acceptance, final push — complete.

@@ -1,0 +1,47 @@
+{
+  "release": "edc17acfb7e0a276b016928ca6a1ceb7791a24bc",
+  "artifact_sha256": "a9a1c3b33e376a69f77f3119860084290e8be48bf85b4a6cb36ef0bf56872a3d",
+  "automated_tests": 68,
+  "instruction": {
+    "authenticated_generation": true,
+    "no_cpa_key_in_text": true,
+    "one_use_pairing": true,
+    "expires_seconds": 600,
+    "no_credentials_in_urls_or_process_arguments": true
+  },
+  "full_published_bootstrap": {
+    "passed": true,
+    "seconds": 37.8,
+    "platform": "Windows",
+    "python": "3.11",
+    "fresh_private_environment": true,
+    "download_checksum_verified": true,
+    "dependency_installation": true,
+    "automatic_clients": [
+      "codex",
+      "claude"
+    ],
+    "existing_model_preserved": true,
+    "authenticated_search": true
+  },
+  "mcp": {
+    "initialized": true,
+    "tools": 5,
+    "remember_and_recall": true
+  },
+  "public_https_verified": true,
+  "origin_status": 200,
+  "tunnel_status": 200,
+  "source_cpa_unchanged": true,
+  "source_cpa_containers_not_restarted": true,
+  "observation": {
+    "seconds": 86.7,
+    "restarts": 0,
+    "active": true
+  },
+  "browser_visual_qa": false,
+  "rollback_release": "/home/codex-admin/services/self-agent/releases/0b3914bcdaba",
+  "stable_fallback_release": "/home/codex-admin/services/self-agent/releases/c4f7a42b2aa2",
+  "rollback_config": "/home/codex-admin/services/self-agent/config/backups/before-edc17acfb7e0.json",
+  "generated_at": "2026-10-26T12:28:15.223Z"
+}

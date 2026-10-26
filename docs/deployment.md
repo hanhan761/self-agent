@@ -61,3 +61,7 @@ Windows 控制器仅改变本项目的隐藏进程启动方式，不改全局 yu
 客户端公开源码包由 ops/build_client.py 在开发机生成，包含白名单程序文件与 SHA-256 清单；发布脚本自动包含它。服务器只生成带短期配对码的小型用户接入 ZIP，不在服务器构建程序、安装依赖或复制 CPA 原始密钥。
 
 CPA 本次更新回滚程序时，必须同时恢复 config/backups/before-c4f7a42b2aa2.json 到 config/server.json，再切回 releases/78e83d3367b2 并重启 self-agent。该备份已与更新前公网配置的 SHA-256 对齐，并用旧程序验证可读取；不能只切换程序指针而保留旧程序不识别的 CPA 配置字段。
+
+## 发给智能体的接入指令
+
+认证后 POST /api/pairing/agent 生成短期指令。/connect/agent.md 提供公开规范，/connect/manifest.json 给出 bootstrap.py 的 SHA-256。真正的程序和客户端包仍在开发机构建；自动接入只在用户设备创建环境，不在 4090 构建运行依赖。线上完整接入验收见 [agent-connect-acceptance.json](agent-connect-acceptance.json)。
