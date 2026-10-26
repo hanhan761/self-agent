@@ -120,7 +120,7 @@ s.close()
             command(['sudo','-n','systemctl','daemon-reload'])
             command(['sudo','-n','systemctl','enable','self-agent.service'])
             command(['sudo','-n','systemctl','restart','self-agent.service'])
-            health='http://100.95.110.75:8766/healthz'
+            health='http://'+config['host']+':'+str(config.get('port',8766))+'/healthz'
             for attempt in range(30):
                 try:
                     with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(health,timeout=2) as response:
@@ -129,7 +129,7 @@ s.close()
                     if attempt==29:raise
                     time.sleep(1)
             record={'active_release':revision,'artifact_sha256':args.sha256,'rollback_release':str(previous) if previous else None,
-                    'origin_health':'ok','host_binding':'tailscale-only','runtime_build':False}
+                    'origin_health':'ok','host_binding':config['host'],'runtime_build':False}
             (state/'deployment.json').write_text(json.dumps(record,indent=2))
             print(json.dumps(record))
         except BaseException:

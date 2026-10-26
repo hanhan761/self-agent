@@ -1,6 +1,6 @@
 [Unit]
 Description=Self Agent private knowledge service
-After=network-online.target tailscaled.service
+After=network-online.target
 Wants=network-online.target
 
 [Service]

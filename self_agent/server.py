@@ -77,6 +77,8 @@ def create_app(config=None,*,start_worker=True,provider=None):
             if request.method!='DELETE' and request.headers.get('content-type','').split(';')[0]!='application/json':return JSONResponse({'detail':'需要 JSON 请求'},status_code=415)
         response=await call_next(request)
         response.headers.update({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"})
+        if config.secure_cookie:
+            response.headers['Strict-Transport-Security']='max-age=31536000'
         return response
 
     @app.exception_handler(KeyError)
