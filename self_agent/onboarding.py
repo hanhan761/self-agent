@@ -4,13 +4,20 @@ import json
 from pathlib import Path
 import secrets
 import socket
+import shutil
+import os
 from urllib.parse import urlparse
 import httpx
 from .config import private_root
 from .install import backup, install_client
 
 
-def setup(url, client='codex', pair_code=None, proxy=None, prompt=getpass.getpass):
+def setup(url, client='auto', pair_code=None, proxy=None, prompt=getpass.getpass):
+    if client == 'auto':
+        home=Path.home()
+        detected=[name for name in ('codex','claude') if shutil.which(name) or (home/('.codex' if name=='codex' else '.claude')).is_dir() or (name=='claude' and (home/'.claude.json').is_file())]
+        if not detected:raise ValueError('未检测到 Codex 或 Claude Code，请让当前智能体确认客户端后重试')
+        client='both' if len(detected)==2 else detected[0]
     parsed = urlparse(url)
     if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError('invalid_service_url')

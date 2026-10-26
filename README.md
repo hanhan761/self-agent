@@ -41,7 +41,7 @@ Windows 私有目录为 %LOCALAPPDATA%\self-agent，Linux 为 ~/.local/share/sel
 
 ## 智能体接入
 
-推荐：使用 CPA 密钥登录网站，在“智能体接入”下载 Windows 接入包，解压并运行 start.cmd（需要 Python 3.11+）。已有客户端可运行 self-agent setup --client codex，隐藏输入密钥后自动配置；--client claude 或 both 可选择工具。详见 [接入说明](docs/access.md)。同一把 CPA 密钥对应同一个知识空间，请勿多人共用。
+推荐：在网站输入 CPA 密钥，点击“生成接入指令”，复制给当前 Codex / Claude Code，让智能体自动完成接入。已有客户端可运行 self-agent setup --client codex，隐藏输入密钥后自动配置；--client claude 或 both 可选择工具。详见 [接入说明](docs/access.md)。同一把 CPA 密钥对应同一个知识空间，请勿多人共用。
 
 以下为高级手动配置方式：
 

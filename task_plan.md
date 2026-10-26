@@ -26,3 +26,10 @@ Remaining user-side product step: review the newly installed Codex hooks through
 3. Key login UI, Windows setup bundle and hidden-input CLI — complete.
 4. Checks — 64 tests passed; JavaScript and downloaded PowerShell syntax verified.
 5. Immutable deployment and live isolated setup/MCP verification — complete.
+
+## Paste-to-agent onboarding
+
+1. Generate a one-use instruction immediately after CPA login — complete.
+2. Public guide/checksum and automatic client bootstrap — complete.
+3. Tests and off-host release — in progress.
+4. Live full bootstrap in an isolated profile, MCP acceptance, final push — pending.

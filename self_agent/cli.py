@@ -20,7 +20,7 @@ def main():
     serve=sub.add_parser('serve');serve.add_argument('--host');serve.add_argument('--port',type=int)
     connect=sub.add_parser('connect');connect.add_argument('--url',required=True);connect.add_argument('--token-file',required=True);connect.add_argument('--proxy',help='Explicit optional HTTP(S) network proxy')
     install=sub.add_parser('install-client');install.add_argument('--client',choices=['claude','codex'],required=True)
-    setup_cmd=sub.add_parser('setup');setup_cmd.add_argument('--url',default='https://self-agent.matterswarm.com');setup_cmd.add_argument('--client',choices=['codex','claude','both'],default='codex');setup_cmd.add_argument('--pair-code-stdin',action='store_true');setup_cmd.add_argument('--proxy')
+    setup_cmd=sub.add_parser('setup');setup_cmd.add_argument('--url',default='https://self-agent.matterswarm.com');setup_cmd.add_argument('--client',choices=['auto','codex','claude','both'],default='auto');setup_cmd.add_argument('--pair-code-stdin',action='store_true');setup_cmd.add_argument('--proxy')
     sub.add_parser('mcp')
     hook=sub.add_parser('hook');hook.add_argument('--client',choices=['claude','codex'],required=True)
     sub.add_parser('inventory-local')

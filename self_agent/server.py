@@ -17,6 +17,8 @@ from .auth import Auth,digest
 from .config import Config
 from .cpa_auth import CpaRegistry,RegistryUnavailable
 from .engine import Engine
+from .agent_connect import instruction,guide
+import hashlib
 from .store import Store
 
 
@@ -54,6 +56,9 @@ class PairInput(BaseModel):
 
 class InstallerInput(PairInput):
     client:str=Field(default='codex',pattern='^(codex|claude|both)$')
+
+class AgentInput(PairInput):
+    client:str=Field(default='auto',pattern='^(auto|codex|claude|both)$')
 
 class RedeemInput(BaseModel):
     code:str=Field(min_length=20,max_length=100)
@@ -148,6 +153,23 @@ def create_app(config=None,*,start_worker=True,provider=None):
     @app.post('/api/pairing')
     def pair_device(body:PairInput,user=Depends(current)):
         return {'code':auth.pair(user,body.name),'expires_in':600}
+
+    @app.post('/api/pairing/agent')
+    def agent_instruction(body:AgentInput,request:Request,user=Depends(current)):
+        code=auth.pair(user,body.name)
+        origin=str(request.base_url).rstrip('/')
+        return {'instruction':instruction(origin,code,body.client),'expires_in':600}
+
+    @app.get('/connect/agent.md')
+    def agent_guide(request:Request):return Response(guide(str(request.base_url).rstrip('/')),media_type='text/markdown')
+
+    @app.get('/connect/manifest.json')
+    def bootstrap_manifest():
+        content=(Path(__file__).parent/'web/bootstrap.py').read_bytes()
+        return {'sha256':hashlib.sha256(content).hexdigest(),'bytes':len(content),'python_minimum':'3.11'}
+
+    @app.get('/connect/bootstrap.py')
+    def bootstrap_script():return FileResponse(Path(__file__).parent/'web/bootstrap.py',media_type='text/plain')
 
     @app.post('/api/pairing/installer')
     def paired_installer(body:InstallerInput,request:Request,user=Depends(current)):
