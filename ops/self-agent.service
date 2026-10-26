@@ -1,0 +1,31 @@
+[Unit]
+Description=Self Agent private knowledge service
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=codex-admin
+Group=codex-admin
+WorkingDirectory=/home/codex-admin/services/self-agent/current
+Environment=SELF_AGENT_DATA=/home/codex-admin/services/self-agent/state
+Environment=SELF_AGENT_CONFIG=/home/codex-admin/services/self-agent/config/server.json
+Environment=PYTHONPATH=/home/codex-admin/services/self-agent/current/vendor:/home/codex-admin/services/self-agent/current
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/codex-admin/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12 -m self_agent.cli serve
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/codex-admin/services/self-agent/state
+MemoryMax=1G
+CPUQuota=100%
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

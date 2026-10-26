@@ -1,0 +1,45 @@
+# 4090 统一网站与 API
+
+## 拓扑
+
+- 目标为 yun 登记的 workstation，连接保留 PEM、登记表与主机指纹校验。
+- 项目根为 /home/codex-admin/services/self-agent。
+- releases/<revision> 保存不可变程序与开发机准备好的依赖，current 指向当前版本。
+- state 保存数据库和运行记录，权限 0700；config/server.json 保存配置和凭据引用，权限 0600。
+- 独立服务为 self-agent.service。
+- 私有入口为 http://100.95.110.75:8766，仅绑定 Tailscale 地址。
+
+访问需要相应 Tailnet。网络流量由 Tailscale 加密。以后若开放公网域名，必须单独配置 HTTPS、secure Cookie 与访问权限。当前不修改 DNS、Cloudflare Tunnel 或其他网站。
+
+## 资源
+
+生成与提炼全部使用交晓智，不下载生成模型，不占用现有 GPU 推理任务。语义索引只使用已缓存向量模型，默认 CPU。
+
+界面是纯静态文件，Python 依赖在开发机准备为 Linux wheels。服务器不运行 pip、npm、编译器或构建工具。
+
+小型服务项目预算限制发布包、展开体积、数据与内存，并按真实需求预检，保留 100 GiB 磁盘余量。此策略依据本次轻量安装要求制定，区别于 yun 未指定项目容量时的默认 15% 余量线，不能扩展为安装生成模型或清理其他项目。
+
+## 发布与回滚
+
+1. 开发机运行检查，记录精确源提交。
+2. 准备 Linux / Python 3.12 wheels；Jieba 通用 wheel 在开发机生成。
+3. python ops/build_release.py --revision <commit> 生成逐文件哈希与不可变包。
+4. 通过 scripts/yun_hidden.py 核验目标、磁盘、端口与压力。
+5. 有界上传到 incoming，bootstrap 仅通过私有文件传递，不进入源码或参数。
+6. ops/activate.py 在锁内校验、离线导入检查并无构建激活。
+7. 验证进程、origin、客户端、鉴权及原生完整回复，观察至少 60 秒。
+
+Windows 控制器仅改变本项目的隐藏进程启动方式，不改全局 yun 代码或身份验证。
+
+首装回滚：
+
+    sudo systemctl disable --now self-agent.service
+
+数据库与备份保留。更新时保留前一 release，回退 current 后重启本服务。涉及数据格式变化时须先验证兼容性，不可盲目回退。
+
+## 验收边界
+
+- healthz 不代替客户端、鉴权或模型验收。
+- pending、failed、uncertain 不算提炼成功。
+- 状态页未启用语义索引时，不声称完成语义召回。
+- CUA 没有浏览器时，记录视觉验收未完成，不以 API 检查替代。
