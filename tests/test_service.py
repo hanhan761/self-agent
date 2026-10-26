@@ -220,3 +220,20 @@ def test_chinese_top_five_retrieval(service,title,content,query):
     expected=next(x for x in app.state.store.listing(alice) if x['title']==title)
     found=c.get('/v1/search',params={'q':query,'limit':5}).json()['items']
     assert expected['id'] in {r['id'] for r in found}
+
+
+def test_confirmed_format_repair_and_role_provenance(tmp_path):
+    source=json.dumps([{'role':'user','content':'请记住，我更喜欢中文。'}],ensure_ascii=False)
+    good=json.dumps({'memories':[{'content':'用户喜欢中文','kind':'preference','evidence':'我更喜欢中文','explicit':True}]},ensure_ascii=False)
+    provider=XjtuProvider(Config(tmp_path))
+    replies=iter(['not-json',good])
+    provider.complete=lambda messages:next(replies)
+    assert provider.extract(source)[0]['explicit'] is True
+    provider.complete=lambda messages:good
+    assert provider.extract('助手建议：我更喜欢中文')[0]['explicit'] is False
+
+def test_foreign_semantic_result_cannot_escape_owner(service):
+    c,app,alice,bob=service
+    other=app.state.store.add(bob,'','其他用户的私密知识')
+    app.state.engine.index.search_ids=lambda *args:[other['id']]
+    assert c.get('/v1/search',params={'q':'私密知识'}).json()['items']==[]

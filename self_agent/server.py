@@ -94,7 +94,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
         return user
 
     def writable():
-        used=sum(p.stat().st_size for p in config.data_dir.glob('*.sqlite*') if p.is_file())
+        used=sum(p.stat().st_size for p in config.data_dir.rglob('*') if p.is_file())
         if used>=config.max_data_bytes:raise HTTPException(507,'数据预算已达上限，请先导出并调整容量')
 
     @app.get('/healthz')

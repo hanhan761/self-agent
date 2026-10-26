@@ -19,6 +19,7 @@ class Config:
     semantic: bool = False
     embedding_model: str = 'BAAI/bge-m3'
     embedding_device: str = 'cpu'
+    embedding_dims: int = 1024
     xjtu_credentials: str = ''
     xjtu_native_config: str = ''
     xjtu_model: str = 'qwen3.8-max'

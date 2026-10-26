@@ -23,13 +23,15 @@ class Index:
                 self.memory=Memory.from_config({
                     'llm':{'provider':'self_agent_xjtu','config':{'model':self.config.xjtu_model}},
                     'embedder':{'provider':'huggingface','config':{'model':self.config.embedding_model,
-                        'model_kwargs':{'device':self.config.embedding_device,'local_files_only':True},'embedding_dims':1024}},
-                    'vector_store':{'provider':'qdrant','config':{'collection_name':'self_agent','path':str(self.config.data_dir/'vectors'),'embedding_model_dims':1024}},
+                        'model_kwargs':{'device':self.config.embedding_device,'local_files_only':True},'embedding_dims':self.config.embedding_dims}},
+                    'vector_store':{'provider':'qdrant','config':{'collection_name':'self_agent','path':str(self.config.data_dir/'vectors'),'embedding_model_dims':self.config.embedding_dims}},
                     'history_db_path':str(self.config.data_dir/'mem0-history.db')})
                 self.error=''
             except Exception as exc:
                 self.error=type(exc).__name__
                 self.memory=None
+                import traceback
+                (self.config.data_dir/'index-error.log').write_text(traceback.format_exc(),'utf-8')
 
     def sync(self):
         if not self.memory:return

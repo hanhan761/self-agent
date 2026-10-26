@@ -40,29 +40,58 @@ class XjtuProvider:
         return client.complete(prompt,model=self._route)
 
     def extract(self, text):
-        value=parse_json(self.complete([{'role':'system','content':EXTRACTION},{'role':'user','content':text}]))
-        items=value.get('memories')
-        if not isinstance(items,list) or len(items)>12:raise ValueError('invalid_extraction_schema')
-        result=[]
-        for item in items:
-            if not isinstance(item,dict) or not isinstance(item.get('content'),str) or not 1<=len(item['content'])<=12000:raise ValueError('invalid_extraction_item')
-            if item.get('kind') not in ('preference','fact','decision','procedure') or not isinstance(item.get('explicit'),bool):raise ValueError('invalid_extraction_type')
-            evidence=item.get('evidence')
-            if not isinstance(evidence,str) or not evidence.strip() or evidence not in text:raise ValueError('ungrounded_extraction')
-            # Conversation provenance is checked independently of the model's confidence.
+        messages=[{'role':'system','content':EXTRACTION},{'role':'user','content':text}]
+        # One bounded format repair is permitted only after a confirmed complete reply.
+        for attempt in range(2):
+            response=self.complete(messages)
             try:
-                messages=json.loads(text)
-            except ValueError:
-                messages=None
-            user_evidence=isinstance(messages,list) and any(
-                isinstance(message,dict) and message.get('role')=='user'
-                and evidence in message.get('content','')
-                for message in messages if isinstance(message,dict)
-            )
-            item['explicit']=item['explicit'] and user_evidence
-            result.append(item)
-        return result
+                return validate_extraction(text,response)
+            except (ValueError,TypeError) as exc:
+                if attempt:
+                    self._save_failed_extraction(text,response)
+                    raise ExtractionError('extraction_validation_failed') from None
+                messages += [
+                    {'role':'assistant','content':response},
+                    {'role':'user','content':'上一条没有通过结构或原文引文校验。请严格使用 memories 数组、content/kind/evidence/explicit 字段，evidence 必须是最初输入中逐字存在的连续片段；没有依据的条目请删除。仅输出 JSON。'}
+                ]
 
+    def _save_failed_extraction(self,text,response):
+        from pathlib import Path
+        import hashlib,time
+        directory=self.config.data_dir/'provider-evidence'
+        directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+        old=sorted(directory.glob('*.json'),key=lambda p:p.stat().st_mtime)
+        for file in old[:-19]:file.unlink()
+        name=hashlib.sha256(text.encode()).hexdigest()[:20]+'-'+str(time.time_ns())+'.json'
+        file=directory/name
+        file.write_text(json.dumps({'response':response[:1024**2],'stage':'validated-complete-reply'},ensure_ascii=False),'utf-8')
+        file.chmod(0o600)
+
+
+class ExtractionError(ValueError):
+    pass
+
+
+def validate_extraction(text,response):
+    value=parse_json(response)
+    items=value.get('memories')
+    if not isinstance(items,list) or len(items)>12:raise ValueError('invalid_extraction_schema')
+    result=[]
+    for item in items:
+        if not isinstance(item,dict) or not isinstance(item.get('content'),str) or not 1<=len(item['content'])<=12000:raise ValueError('invalid_extraction_item')
+        if item.get('kind') not in ('preference','fact','decision','procedure') or not isinstance(item.get('explicit'),bool):raise ValueError('invalid_extraction_type')
+        evidence=item.get('evidence')
+        if not isinstance(evidence,str) or not evidence.strip() or evidence not in text:raise ValueError('ungrounded_extraction')
+        try:messages=json.loads(text)
+        except ValueError:messages=None
+        user_evidence=isinstance(messages,list) and any(
+            isinstance(message,dict) and message.get('role')=='user'
+            and isinstance(message.get('content'),str) and evidence in message['content']
+            for message in messages
+        )
+        item['explicit']=item['explicit'] and user_evidence
+        result.append(item)
+    return result
 
 def parse_json(value):
     value=value.strip()

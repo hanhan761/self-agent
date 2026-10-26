@@ -16,3 +16,8 @@
 - Live MCP stdio test passed: initialize, 5 tools, remember and recall.
 - Corrected Windows private-root fallback for hidden processes without LOCALAPPDATA.
 - CPU semantic dependency preparation hit a TLS failure at the official PyTorch index; core service artifacts are unaffected.
+
+- 4090 first release activated from a 29 MB off-host artifact. Native Qwen extraction completed; remote MCP read/write passed. More than 60 seconds observed, zero restarts, unrelated sampled services remain active.
+- Claude/Codex configurations installed with originals backed up; Codex trust review remains product-controlled.
+- Selected history imported: 2 related files, 279 unrelated/unattributed skipped. One extraction failed validation; adding one bounded repair after confirmed complete responses.
+- BGE-M3 cache contains metadata only. A complete existing multilingual MiniLM encoder is available; use it for the first CPU semantic index, without downloading model weights. Official CPU runtime wheel downloaded off-host and digest verified.

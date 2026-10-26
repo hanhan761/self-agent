@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--revision',required=True)
+    parser.add_argument('--include-semantic',action='store_true')
     args=parser.parse_args()
     target=ROOT/'dist'/'release'
     if target.exists():
@@ -20,7 +21,10 @@ def main():
         shutil.rmtree(target)
     target.mkdir(parents=True)
     vendor=target/'vendor';vendor.mkdir()
-    for wheel in (ROOT/'dist'/'wheels').glob('*.whl'):
+    wheels={w.name:w for w in (ROOT/'dist'/'wheels').glob('*.whl')}
+    if args.include_semantic:
+        wheels.update({w.name:w for w in (ROOT/'dist'/'semantic-wheels').glob('*.whl')})
+    for wheel in wheels.values():
         with zipfile.ZipFile(wheel) as archive:
             for item in archive.infolist():
                 p=Path(item.filename)
