@@ -237,3 +237,11 @@ def test_foreign_semantic_result_cannot_escape_owner(service):
     other=app.state.store.add(bob,'','其他用户的私密知识')
     app.state.engine.index.search_ids=lambda *args:[other['id']]
     assert c.get('/v1/search',params={'q':'私密知识'}).json()['items']==[]
+
+
+def test_extraction_quotes_match_decoded_transcript(tmp_path):
+    source=json.dumps([{'role':'user','content':'请记住路径 C:\\work\\notes，\n后续复用。'}],ensure_ascii=False)
+    reply=json.dumps({'memories':[{'content':'知识路径为 C:\\work\\notes','kind':'fact','evidence':'路径 C:\\work\\notes，\n后续复用','explicit':True}]},ensure_ascii=False)
+    provider=XjtuProvider(Config(tmp_path))
+    provider.complete=lambda messages:reply
+    assert provider.extract(source)[0]['explicit'] is True

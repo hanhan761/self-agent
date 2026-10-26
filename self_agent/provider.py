@@ -76,14 +76,16 @@ def validate_extraction(text,response):
     value=parse_json(response)
     items=value.get('memories')
     if not isinstance(items,list) or len(items)>12:raise ValueError('invalid_extraction_schema')
+    try:messages=json.loads(text)
+    except ValueError:messages=None
+    source_texts=[message['content'] for message in messages
+                  if isinstance(message,dict) and isinstance(message.get('content'),str)] if isinstance(messages,list) else [text]
     result=[]
     for item in items:
         if not isinstance(item,dict) or not isinstance(item.get('content'),str) or not 1<=len(item['content'])<=12000:raise ValueError('invalid_extraction_item')
         if item.get('kind') not in ('preference','fact','decision','procedure') or not isinstance(item.get('explicit'),bool):raise ValueError('invalid_extraction_type')
         evidence=item.get('evidence')
-        if not isinstance(evidence,str) or not evidence.strip() or evidence not in text:raise ValueError('ungrounded_extraction')
-        try:messages=json.loads(text)
-        except ValueError:messages=None
+        if not isinstance(evidence,str) or not evidence.strip() or not any(evidence in source for source in source_texts):raise ValueError('ungrounded_extraction')
         user_evidence=isinstance(messages,list) and any(
             isinstance(message,dict) and message.get('role')=='user'
             and isinstance(message.get('content'),str) and evidence in message['content']
