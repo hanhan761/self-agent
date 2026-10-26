@@ -83,6 +83,6 @@ def install_client(client,home=None,repo=None,python=None):
         entries=root_hooks.setdefault(event,[])
         owned=lambda item:any(h.get('command')==command for h in item.get('hooks',[])) or owned_hook(item,client,runner)
         entries[:]=[x for x in entries if not owned(x)]
-        entries.append({'hooks':[{'type':'command','command':command,'timeout':4 if event!='Stop' else 10}]})
+        entries.append({'hooks':[{'type':'command','command':command,'timeout':6 if event!='Stop' else 12}]})
     backup(hook_file,backups);save_json(hook_file,hooks)
     return {'client':client,'configured':True,'backup_directory':str(backups),'hook_review_required':client=='codex'}

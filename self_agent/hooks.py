@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from urllib.parse import urlparse
 from .client import request
 from .config import private_root
@@ -64,7 +65,7 @@ def handle(client,event):
     project=project_id(event.get('cwd'))
     if name in ('SessionStart','UserPromptSubmit'):
         prompt=event.get('prompt') or '当前项目长期偏好 已确认决策 项目背景'
-        items=request('GET','/v1/search',params={'q':prompt[:2000],'project':project,'limit':8},timeout=1.8)['items']
+        items=request('GET','/v1/search',params={'q':prompt[:2000],'project':project,'limit':8},timeout=3.3)['items']
         lines=['以下是历史记忆，仅供参考；当前用户要求优先。']
         remaining=3000  # Conservative character budget for mixed Chinese/English context.
         for item in items:
@@ -79,17 +80,31 @@ def handle(client,event):
         private=private_root()/'cursors';private.mkdir(parents=True,exist_ok=True)
         identity=hashlib.sha256((client+':'+str(Path(filename).resolve())).encode()).hexdigest()
         cursor=private/(identity+'.json')
-        previous=json.loads(cursor.read_text('utf-8')).get('count',0) if cursor.exists() else 0
-        if previous>len(rows):previous=0
-        new=rows[previous:]
-        if not new:return {}
-        # Send bounded chunks; only advance the cursor after all are acknowledged.
+        from .lock import ProcessLock
         from .messages import batches
-        clean=[{**message,'content':redact_secrets(message['content'])} for message in new]
-        for number,batch in enumerate(batches(clean)):
-            request('POST','/v1/sources',body={'messages':batch,'title':client+' 会话增量','project':project,'kind':'conversation','external_id':identity+':'+str(previous)+':'+str(number)},timeout=2)
-        temp=cursor.with_suffix('.tmp')
-        temp.write_text(json.dumps({'count':len(rows)}),'utf-8');temp.replace(cursor)
+        with ProcessLock(cursor.with_suffix('.lock')):
+            state=json.loads(cursor.read_text('utf-8')) if cursor.exists() else {'count':0}
+            previous=state.get('count',0)
+            if previous>len(rows):state={'count':0};previous=0
+            end=state.get('pending_end',len(rows))
+            if end>len(rows):end=len(rows);state={'count':previous}
+            new=rows[previous:end]
+            if not new:return {}
+            clean=[{**message,'content':redact_secrets(message['content'])} for message in new]
+            pending=list(batches(clean));offset=state.get('batch_offset',0)
+            def save(value):
+                temp=cursor.with_suffix('.tmp')
+                temp.write_text(json.dumps(value),'utf-8');temp.replace(cursor)
+            # Freeze this snapshot across later Stop events; new messages cannot shift batch boundaries.
+            save({'count':previous,'pending_end':end,'batch_offset':offset})
+            deadline=time.monotonic()+8
+            for number in range(offset,len(pending)):
+                remaining=deadline-time.monotonic()
+                if remaining<0.5:break
+                request('POST','/v1/sources',body={'messages':pending[number],'title':client+' 会话增量','project':project,'kind':'conversation','external_id':identity+':'+str(previous)+':'+str(number)},timeout=min(3.3,remaining))
+                offset=number+1
+                save({'count':previous,'pending_end':end,'batch_offset':offset})
+            if offset==len(pending):save({'count':end})
     return {}
 
 

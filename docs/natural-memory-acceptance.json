@@ -1,5 +1,5 @@
 {
-  "automated_tests": 87,
+  "automated_tests": 88,
   "javascript_syntax": "passed",
   "native_model": {
     "passed": true,
@@ -59,5 +59,18 @@
   },
   "staged_source_tree": "cce61b013a6fcf2668b5c85835397606004409a0dc68a00223e83c51b856f20d",
   "browser_visual_verification": "not yet performed",
-  "interactive_host_hook_trust": "requires user review"
+  "interactive_host_hook_trust": "requires user review",
+  "public_hook_acceptance": {
+    "passed": true,
+    "steps": [
+      "automatic_capture_and_extraction",
+      "prompt_context_recall",
+      "new_session_context_recall",
+      "natural_correction_replaces_old",
+      "corrected_context_only"
+    ],
+    "isolated_identity": true,
+    "actual_hidden_hook_processes": true,
+    "interactive_host_trust_not_bypassed": true
+  }
 }

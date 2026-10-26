@@ -1,6 +1,6 @@
 # Natural memory lifecycle
 
-Normal conversations are captured only after the host's Hook trust review. The client sends redacted message envelopes with role, timestamp and stable IDs. Batches never split serialized JSON; long messages preserve role and provenance across fragments. Plain-text legacy sources remain supported but cannot independently prove a user's statement.
+Normal conversations are captured only after the host's Hook trust review. The client sends redacted message envelopes with role, timestamp and stable IDs. Each acknowledged batch advances a durable cursor; a frozen pending snapshot resumes after interruption without resending already acknowledged batches. Read requests allow 3.3 seconds inside a 6-second host budget; Stop uploads use an 8-second work budget inside a 12-second host budget. Batches never split serialized JSON; long messages preserve role and provenance across fragments. Plain-text legacy sources remain supported but cannot independently prove a user's statement.
 
 Native XJTU extraction classifies personal, project and session-only information. Explicit personal preferences work across projects; project exceptions retain a separate record and override only the corresponding personal default in that project. Temporary instructions are not durable memories. Model replies require valid structure and verbatim source evidence; the model and account allowlist have no fallback. Extraction and reconciliation each allow one format repair after a confirmed complete reply.
 
@@ -22,7 +22,7 @@ Explicit absolute deadline dates use Asia/Shanghai; a date with no time includes
 
 ## Verification and rollout
 
-87 automated tests and JavaScript syntax checks pass. The isolated real qwen3.8-max acceptance covers personal scope, equivalent merge with multiple sources, explicit replacement, project exception, temporary instruction and explicit deadline. Native prompts/replies and synthetic SQLite data remain in the private acceptance directory, outside Git. The public acceptance summary contains no user conversation or credentials.
+88 automated tests and JavaScript syntax checks pass. The isolated real qwen3.8-max acceptance covers personal scope, equivalent merge with multiple sources, explicit replacement, project exception, temporary instruction and explicit deadline. Native prompts/replies and synthetic SQLite data remain in the private acceptance directory, outside Git. The public acceptance summary contains no user conversation or credentials.
 
 Deploy with the existing off-host patch builder and checksum-verified no-build activator. Keep the previous release and SQLite snapshot. Additive side tables allow program rollback without dropping state; new lifecycle fields are only surfaced by the new runtime. Do not restore a pre-release database over newer user writes. Rollback temporarily suspends the new learning behavior.
 

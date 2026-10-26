@@ -251,3 +251,31 @@ def test_projection_scope_change_and_retry_are_idempotent(service):
     # Projection may disappear before an acknowledged sync; retry must rebuild it.
     vectors.clear();app.state.store.update(uid,memory['id'],content='偏好中文且简洁')
     index.sync();assert index.error=='' and len(vectors)==1
+
+
+def test_partial_hook_upload_resumes_frozen_snapshot(tmp_path,monkeypatch):
+    import self_agent.hooks as hooks
+    import httpx
+    private=tmp_path/'private';private.mkdir()
+    monkeypatch.setattr(hooks,'private_root',lambda:private)
+    monkeypatch.setattr(hooks,'project_id',lambda cwd:'a')
+    rows=[{'id':str(i),'role':'user','content':'有依据的长消息'*1000,'observed_at':None} for i in range(3)]
+    monkeypatch.setattr(hooks,'normalized_messages',lambda *a:rows.copy())
+    seen=[];failed=[False]
+    def upload(method,url,**kw):
+        number=int(kw['body']['external_id'].rsplit(':',1)[1])
+        if number==1 and not failed[0]:failed[0]=True;raise httpx.ConnectTimeout('synthetic network interruption')
+        seen.append((kw['body']['external_id'],json.dumps(kw['body']['messages'],sort_keys=True)))
+        return {'queued':True}
+    monkeypatch.setattr(hooks,'request',upload)
+    event={'hook_event_name':'Stop','transcript_path':str(tmp_path/'transcript'),'cwd':str(tmp_path)}
+    with pytest.raises(httpx.ConnectTimeout):hooks.handle('codex',event)
+    cursor=next((private/'cursors').glob('*.json'));state=json.loads(cursor.read_text())
+    assert state['batch_offset']==1 and state['count']==0 and state['pending_end']==3
+    # A new message arriving between events cannot alter already accepted batches.
+    rows.append({'id':'next','role':'user','content':'后续的新消息','observed_at':None})
+    hooks.handle('codex',event)
+    state=json.loads(cursor.read_text());assert state=={'count':3}
+    assert len({k for k,v in seen})==len(seen)
+    hooks.handle('codex',event)
+    assert json.loads(cursor.read_text())=={'count':4}
