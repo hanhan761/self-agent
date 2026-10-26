@@ -19,14 +19,15 @@ class Index:
                 os.environ['HF_HUB_OFFLINE']='1'
                 os.environ['TOKENIZERS_PARALLELISM']='false'
                 from .provider import register_mem0_provider
-                register_mem0_provider(self.config)
+                native_llm=register_mem0_provider(self.config)
                 from mem0 import Memory
-                self.memory=Memory.from_config({
-                    'llm':{'provider':'self_agent_xjtu','config':{'model':self.config.xjtu_model}},
+                from mem0.configs.base import MemoryConfig
+                self.memory=Memory(config=MemoryConfig(**{
+                    'llm':native_llm,
                     'embedder':{'provider':'huggingface','config':{'model':self.config.embedding_model,
                         'model_kwargs':{'device':self.config.embedding_device,'local_files_only':True},'embedding_dims':self.config.embedding_dims}},
                     'vector_store':{'provider':'qdrant','config':{'collection_name':'self_agent','path':str(self.config.data_dir/'vectors'),'embedding_model_dims':self.config.embedding_dims}},
-                    'history_db_path':str(self.config.data_dir/'mem0-history.db')})
+                    'history_db_path':str(self.config.data_dir/'mem0-history.db')}))
                 self.error=''
             except Exception as exc:
                 self.error=type(exc).__name__

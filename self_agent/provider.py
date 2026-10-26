@@ -78,7 +78,7 @@ def validate_extraction(text,response):
     if not isinstance(items,list) or len(items)>12:raise ValueError('invalid_extraction_schema')
     try:messages=json.loads(text)
     except ValueError:messages=None
-    source_texts=[message['content'] for message in messages
+    source_texts=[text]+[message['content'] for message in messages
                   if isinstance(message,dict) and isinstance(message.get('content'),str)] if isinstance(messages,list) else [text]
     result=[]
     for item in items:
@@ -88,7 +88,7 @@ def validate_extraction(text,response):
         if not isinstance(evidence,str) or not evidence.strip() or not any(evidence in source for source in source_texts):raise ValueError('ungrounded_extraction')
         user_evidence=isinstance(messages,list) and any(
             isinstance(message,dict) and message.get('role')=='user'
-            and isinstance(message.get('content'),str) and evidence in message['content']
+            and isinstance(message.get('content'),str) and (evidence in message['content'] or evidence in json.dumps(message['content'],ensure_ascii=False))
             for message in messages
         )
         item['explicit']=item['explicit'] and user_evidence
@@ -119,3 +119,18 @@ def register_mem0_provider(config):
     module.NativeLLM=NativeLLM
     sys.modules[module.__name__]=module
     LlmFactory.register_provider('self_agent_xjtu',module.__name__+'.NativeLLM')
+    from mem0.llms.configs import LlmConfig
+    from pydantic import field_validator
+    class NativeLlmConfig(LlmConfig):
+        # Mem0 2.2 has a static config allowlist despite its dynamic factory.
+        # Override only this controlled provider; keep all other config validation.
+        @field_validator('config')
+        @classmethod
+        def validate_config(cls,value,info):
+            if info.data.get('provider')!='self_agent_xjtu':
+                raise ValueError('unexpected_native_provider')
+            if set(value)!= {'model'} or value['model']!=config.xjtu_model:
+                raise ValueError('unexpected_native_model_configuration')
+            return value
+    return NativeLlmConfig(provider='self_agent_xjtu',config={'model':config.xjtu_model})
+
