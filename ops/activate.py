@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--bootstrap')
     parser.add_argument('--service-file',required=True)
     parser.add_argument('--semantic',action='store_true')
+    parser.add_argument('--cpa-auth',action='store_true')
     args=parser.parse_args()
     artifact=Path(args.artifact).resolve()
     if not artifact.is_relative_to(BASE/'incoming'):raise ValueError('artifact_outside_incoming')
@@ -79,6 +80,9 @@ def main():
             'host':'100.95.110.75','port':8766,'semantic':False,'allow_campus_http':True,
             'xjtu_native_config':'/home/codex-admin/services/jiaoxiaozhi-router/experiment-native.json',
             'xjtu_model':'qwen3.8-max','max_data_bytes':512*1024**2}
+        if args.cpa_auth:
+            config.update(cpa_config_file='/home/codex-admin/services/cli-proxy-api/config.yaml',
+                          cpa_permissions_file='/home/codex-admin/services/cli-proxy-api-gateway/key-permissions-data/permissions.json')
         if args.semantic:
             # This exact encoder is already cached; never fetch model weights on-host.
             config.update(semantic=True,embedding_model='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2',

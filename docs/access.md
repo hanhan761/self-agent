@@ -1,34 +1,36 @@
-# 接入与设备互联
+# 使用与安装
 
-公网入口为 https://self-agent.matterswarm.com，DNS、TLS、登录、密钥读写与 MCP 已实测通过。客户端只需要服务地址和自己账号的设备密钥，不需要 Tailscale；手机可以直接浏览器登录。
+网站：https://self-agent.matterswarm.com
 
-## Windows 客户端
+## 第一次使用
 
-安装 Git 和 Python 3.11，然后在自选目录执行：
+1. 打开网站，粘贴你在 https://cpa.matterswarm.com/guide 使用的 CPA 密钥。
+2. 进入知识库，在“智能体接入”选择 Codex、Claude Code 或两者。
+3. 下载 Windows 接入包，解压全部文件，双击 start.cmd。
+4. 安装完成后重启客户端。Codex 还需在 /hooks 审核新钩子。
 
-    git clone https://github.com/hanhan761/self-agent.git
-    cd self-agent
-    py -3.11 -m venv .venv
-    .\.venv\Scripts\python.exe -m pip install -e .
+Windows 接入包需要 Python 3.11+，会自动下载校验客户端、创建独立环境、配对并合并配置；无需手工保存密钥文件。接入包只允许一台设备兑换一次，10 分钟有效，请勿转发；过期后重新下载。客户端安装目录保留在本机私有目录。首次依赖安装需要网络。
 
-管理员为新使用者创建独立账号。登录网站，在“智能体接入”为每台设备创建独立密钥，保存在仓库外的私有文本文件。不要共用管理员账号，不要把密钥写进 Git。
+同一把 CPA 密钥对应同一知识空间，持有者可访问该空间；不同密钥默认隔离。请为不同的人分配独立 CPA 密钥。新密钥不自动继承旧密钥的数据。
 
-    .\.venv\Scripts\python.exe -m self_agent.cli connect --url https://self-agent.matterswarm.com --token-file <私有密钥文件绝对路径>
-    .\.venv\Scripts\python.exe -m self_agent.cli install-client --client claude
-    .\.venv\Scripts\python.exe -m self_agent.cli install-client --client codex
+## 保留已有资料
 
-选择实际使用的客户端安装。原配置会备份并合并。重启客户端；Codex 需在 /hooks 审核信任。保留安装目录和虚拟环境。
+如果此前用账号密码创建过记忆，先选“账号登录”，再到“智能体接入 → 保留已有知识空间”关联自己的 CPA 密钥。关联必须由当前空间的使用者主动确认，不会自动把管理员资料分配给某个 CPA 密钥。
 
-每台设备通过 HTTPS 访问同一服务。一个用户的设备共享其个人及项目记忆；不同用户的数据隔离。相同 Git origin 对应相同项目，但不自动跨用户共享。设备离线时不提供本地知识库副本。
+若该 CPA 密钥刚登录生成了一个空空间，可关联到原空间，并延续该密钥已经配对的设备；已有资料的另一个空间不会被覆盖。CPA 登录和由其派生的设备密钥不获得管理员权限。
 
-生成请求由 4090 调用交晓智；客户端不需要交晓智凭据或 GPU。手机浏览器可管理和查询资料，当前不会自动读取手机微信。
+## 已有本项目客户端
 
-## 本次公网发布
+    self-agent setup --url https://self-agent.matterswarm.com --client codex
 
-使用 4090 已有的 Cloudflare Tunnel；新路由只指向本机 127.0.0.1:8766。网页登录使用 Secure/HttpOnly Cookie，API 使用 Authorization: Bearer 设备密钥。未登录的数据请求返回 401，不开放匿名注册。
+将 codex 换为 claude 或 both 可选择其他工具。命令会隐藏输入 CPA 密钥，交换独立的知识库设备密钥，自动保存并安装接入。CPA 密钥不会写入设备密钥文件。密钥不放在 URL 或命令参数中。
 
-DNS 记录：CNAME self-agent.matterswarm.com -> caa74e4b-9f75-40d1-822a-77a32d993b77.cfargotunnel.com，开启代理。此前该记录不存在。DNS 由账号持有人在控制台添加，不索取其 API Token。
+若网络需要本机 HTTP 代理，可显式添加 --proxy http://127.0.0.1:<代理端口>。普通网络不需要。Windows 接入包可识别已启用的本机 HTTP 代理；不会关闭证书校验。
 
-ops/public_access.py 默认只生成候选配置并校验，显式 --apply --confirm-name <相同域名> 才切换。切换前备份两个配置，持有项目发布锁，保留全部既有路由；异常时恢复配置和服务。回滚目录由执行输出记录。公网是否完成，以独立的 DNS、TLS、匿名拒绝、登录和密钥读写验收为准。
+## 设备互联和撤销
 
-若所在网络需要代理，可以在 connect 命令末尾显式指定 --proxy http://127.0.0.1:<本机代理端口>。普通网络不需要此参数。客户端保持 HTTPS 证书校验，不自动读取未知环境代理。当前控制机校园 DNS 对新域名仍返回旧的 NXDOMAIN，已使用其现有网络代理连接；公共 DNS 与公网 HTTPS 均已验证。
+各设备通过 HTTPS 访问同一服务，用户侧无需 Tailscale、显卡或交晓智凭据。每台设备有独立知识库密钥，可在网站分别撤销。同一用户的个人和项目记忆共享，不同用户隔离；相同 Git origin 只标识项目，不自动跨用户共享。离线时没有本地知识库副本。
+
+CPA 密钥在原中转站停用或移除后，该密钥登录的会话与派生设备访问会在下一次注册表检查时被拒绝。普通账号登录保留为独立恢复方式。认证只读复用 CPA 的密钥注册表和停用策略，不改中转站配置，不调用模型验证。生成和提炼仍使用项目显式配置的交晓智原生账号。
+
+手机可直接用浏览器查询和管理知识；当前不会自动采集手机微信。

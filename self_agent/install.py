@@ -21,6 +21,26 @@ def backup(file,root):
         target.write_bytes(file.read_bytes())
         target.chmod(0o600)
 
+def owned_runner(filename, expected):
+    try:
+        return Path(filename).is_file() and Path(filename).read_bytes() == Path(expected).read_bytes()
+    except (OSError, ValueError):
+        return False
+
+
+def owned_hook(item, client, runner):
+    import re
+    for hook in item.get('hooks', []):
+        match = re.fullmatch(r'"[^"]+" ("(?:[^"\\]|\\.)*") ' + client, hook.get('command', ''))
+        if match:
+            try:
+                if owned_runner(json.loads(match[1]), runner):
+                    return True
+            except ValueError:
+                pass
+    return False
+
+
 def install_client(client,home=None,repo=None,python=None):
     home=Path(home or Path.home())
     repo=Path(repo or Path(__file__).resolve().parents[1]).resolve()
@@ -38,7 +58,9 @@ def install_client(client,home=None,repo=None,python=None):
         data=json.loads(file.read_text('utf-8')) if file.exists() else {}
         servers=data.setdefault('mcpServers',{})
         expected={'command':python,'args':[mcp_runner]}
-        if 'self_agent' in servers and servers['self_agent']!=expected:raise ValueError('已有 self_agent MCP 配置，请先核对')
+        previous=servers.get('self_agent')
+        ours=previous and isinstance(previous.get('args'),list) and len(previous['args'])==1 and owned_runner(previous['args'][0],mcp_runner)
+        if previous and previous!=expected and not ours:raise ValueError('已有 self_agent MCP 配置，请先核对')
         backup(file,backups);servers['self_agent']=expected;save_json(file,data)
         hook_file=home/'.claude'/'settings.json'
     else:
@@ -59,7 +81,7 @@ def install_client(client,home=None,repo=None,python=None):
     root_hooks=hooks.setdefault('hooks',{})
     for event in ('SessionStart','UserPromptSubmit','Stop'):
         entries=root_hooks.setdefault(event,[])
-        owned=lambda item:any(h.get('command')==command for h in item.get('hooks',[]))
+        owned=lambda item:any(h.get('command')==command for h in item.get('hooks',[])) or owned_hook(item,client,runner)
         entries[:]=[x for x in entries if not owned(x)]
         entries.append({'hooks':[{'type':'command','command':command,'timeout':4 if event!='Stop' else 10}]})
     backup(hook_file,backups);save_json(hook_file,hooks)

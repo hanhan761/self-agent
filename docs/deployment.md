@@ -53,3 +53,9 @@ Windows 控制器仅改变本项目的隐藏进程启动方式，不改全局 yu
 ## 公网切换完成
 
 2026-10-26 已验证新域名、TLS、匿名数据请求 401、网页登录、密钥读写和 MCP。运行时仍为 78e83d3367b2，公网配置备份位于 /home/codex-admin/services/self-agent/config/public-rollouts/1793014327186777232-self-agent.matterswarm.com。回滚时在项目发布锁内恢复该目录的 server.before.json 和 tunnel.before.yml 到各自原路径，保持原属主和权限，再重启 self-agent 与 cloudflared；恢复前检查原域名路由及私有入口是否仍适用。客户端 URL 需相应恢复。没有数据格式迁移。
+
+## CPA 联合认证与设备接入
+
+部署器 --cpa-auth 为本项目启用只读 CPA 注册表路径，不修改 CPA 服务。新增身份、会话绑定、设备绑定与一次性配对表均为增量表；旧程序可继续读取原有数据。认证缓存依据源文件 inode/mtime/size 刷新，文件异常时拒绝 CPA 认证，原账号仍可恢复。
+
+客户端公开源码包由 ops/build_client.py 在开发机生成，包含白名单程序文件与 SHA-256 清单；发布脚本自动包含它。服务器只生成带短期配对码的小型用户接入 ZIP，不在服务器构建程序、安装依赖或复制 CPA 原始密钥。

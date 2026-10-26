@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 import json
+import io
+import zipfile
 import sqlite3
 import threading
 import time
@@ -13,6 +15,7 @@ from pydantic import BaseModel,Field
 from .archive import export_user,restore_user
 from .auth import Auth,digest
 from .config import Config
+from .cpa_auth import CpaRegistry,RegistryUnavailable
 from .engine import Engine
 from .store import Store
 
@@ -43,6 +46,18 @@ class Question(BaseModel):
     query:str=Field(min_length=1,max_length=4000)
     project:str=Field(default='',max_length=200)
 
+class KeyLogin(BaseModel):
+    token:str=Field(min_length=16,max_length=4096)
+
+class PairInput(BaseModel):
+    name:str=Field(default='新设备',min_length=1,max_length=80)
+
+class InstallerInput(PairInput):
+    client:str=Field(default='codex',pattern='^(codex|claude|both)$')
+
+class RedeemInput(BaseModel):
+    code:str=Field(min_length=20,max_length=100)
+
 class KeyInput(BaseModel):
     name:str=Field(min_length=1,max_length=80)
 
@@ -54,7 +69,8 @@ def create_app(config=None,*,start_worker=True,provider=None):
     config=config or Config.load()
     config.prepare()
     store=Store(config.data_dir/'memory.sqlite3')
-    auth=Auth(store)
+    registry=CpaRegistry(config)
+    auth=Auth(store,registry)
     engine=Engine(config,store,provider)
     @asynccontextmanager
     async def lifespan(app):
@@ -81,6 +97,9 @@ def create_app(config=None,*,start_worker=True,provider=None):
             response.headers['Strict-Transport-Security']='max-age=31536000'
         return response
 
+    @app.exception_handler(RegistryUnavailable)
+    async def registry_unavailable(request,exc):return JSONResponse({'detail':'CPA 密钥认证暂时不可用，请稍后重试'},status_code=503)
+
     @app.exception_handler(KeyError)
     async def missing(request,exc):return JSONResponse({'detail':'内容不存在'},status_code=404)
     @app.exception_handler(ValueError)
@@ -102,14 +121,62 @@ def create_app(config=None,*,start_worker=True,provider=None):
     @app.get('/healthz')
     def health():return {'status':'ok','version':'0.1.0'}
 
-    @app.post('/api/login')
-    def login(body:Login,request:Request,response:Response):
+    def throttle(request,category='login',limit=8):
         host=request.client.host if request.client else 'unknown'
         with attempts_lock:
-            times=attempts[host]
+            times=attempts[(category,host)]
             while times and times[0]<time.time()-60:times.popleft()
-            if len(times)>=8:raise HTTPException(429,'请稍后重试')
+            if len(times)>=limit:raise HTTPException(429,'请稍后重试')
             times.append(time.time())
+
+    @app.get('/api/auth/options')
+    def auth_options():return {'cpa':registry.configured,'guide':'https://cpa.matterswarm.com/guide'}
+
+    @app.post('/api/login/key')
+    def key_login(body:KeyLogin,request:Request,response:Response):
+        throttle(request)
+        token=auth.login_key(body.token.strip())
+        if not token:raise HTTPException(401,'密钥无效或已停用')
+        response.set_cookie('sa_session',token,httponly=True,secure=config.secure_cookie,samesite='strict',max_age=7*86400)
+        return {'ok':True}
+
+    @app.post('/api/cpa/link')
+    def link_cpa(body:KeyLogin,user=Depends(current)):
+        auth.link_cpa(user['id'],body.token.strip())
+        return {'ok':True}
+
+    @app.post('/api/pairing')
+    def pair_device(body:PairInput,user=Depends(current)):
+        return {'code':auth.pair(user,body.name),'expires_in':600}
+
+    @app.post('/api/pairing/installer')
+    def paired_installer(body:InstallerInput,request:Request,user=Depends(current)):
+        code=auth.pair(user,body.name)
+        script=(Path(__file__).parent/'web/install.ps1').read_text('utf-8')
+        origin=str(request.base_url).rstrip('/').replace("'","''")
+        script=script.replace("[string]$ServiceUrl = 'https://self-agent.matterswarm.com'", "[string]$ServiceUrl = '"+origin+"'")
+        script=script.replace("[string]$Client = 'codex'", "[string]$Client = '"+body.client+"'")
+        script=script.replace("[string]$PairCode = ''", "[string]$PairCode = '"+code+"'")
+        stream=io.BytesIO()
+        with zipfile.ZipFile(stream,'w',zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('install.ps1',script.encode('utf-8-sig'))
+            archive.writestr('start.cmd',"@echo off\r\npowershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0install.ps1\"\r\npause\r\n")
+            archive.writestr('README.txt',"Self Agent\r\nExtract all files, then double-click start.cmd.\r\nPython 3.11+ is required.\r\nThis package pairs one device and expires in 10 minutes. Do not share it.\r\n")
+        return Response(stream.getvalue(),media_type='application/zip',headers={'Content-Disposition':'attachment; filename="self-agent-'+body.client+'-setup.zip"'})
+
+    @app.post('/api/pairing/redeem')
+    def redeem_device(body:RedeemInput,request:Request):
+        throttle(request,'pair',30)
+        result=auth.redeem(body.code)
+        if not result:raise HTTPException(401,'配对码无效、已使用或已过期，请重新生成')
+        return result
+
+    @app.get('/client/install.ps1')
+    def client_installer():return FileResponse(Path(__file__).parent/'web/install.ps1',media_type='text/plain')
+
+    @app.post('/api/login')
+    def login(body:Login,request:Request,response:Response):
+        throttle(request)
         token=auth.login(body.username,body.password)
         if not token:raise HTTPException(401,'用户名或密码错误')
         response.set_cookie('sa_session',token,httponly=True,secure=config.secure_cookie,samesite='strict',max_age=7*86400)
@@ -213,7 +280,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
         with store.tx() as db:return {'items':[dict(r) for r in db.execute('SELECT id,name,created FROM api_keys WHERE user_id=?',(user['id'],))]}
 
     @app.post('/api/keys')
-    def issue_key(body:KeyInput,user=Depends(current)):return {'token':auth.issue_key(user['id'],body.name)}
+    def issue_key(body:KeyInput,user=Depends(current)):return {'token':auth.issue_key(user['id'],body.name,user.get('_identity'))}
 
     @app.delete('/api/keys/{kid}')
     def revoke(kid:str,user=Depends(current)):

@@ -1,6 +1,6 @@
 # self-agent
 
-在线入口：[self-agent.matterswarm.com](https://self-agent.matterswarm.com)，使用账号登录或设备 API 密钥接入，无需 Tailscale。安装步骤见 [接入说明](docs/access.md)。
+在线入口：[self-agent.matterswarm.com](https://self-agent.matterswarm.com)，可直接用 CPA 中转站密钥登录，无需 Tailscale。安装步骤见 [接入说明](docs/access.md)。
 
 个人智能体的长期知识库。一个私有网站和统一 API，让 Claude Code、Codex 与其他工具共享同一份可追溯的记忆。
 
@@ -40,6 +40,10 @@ Windows 私有目录为 %LOCALAPPDATA%\self-agent，Linux 为 ~/.local/share/sel
 原生配置引用受保护凭据并带 allowed_account_fingerprints。签名材料只在进程内读取。allow_campus_http 仅用于显式授权的校内入口。型号目录授权不等于完整生成可用，上线须分别验收。
 
 ## 智能体接入
+
+推荐：使用 CPA 密钥登录网站，在“智能体接入”下载 Windows 接入包，解压并运行 start.cmd（需要 Python 3.11+）。已有客户端可运行 self-agent setup --client codex，隐藏输入密钥后自动配置；--client claude 或 both 可选择工具。详见 [接入说明](docs/access.md)。同一把 CPA 密钥对应同一个知识空间，请勿多人共用。
+
+以下为高级手动配置方式：
 
 在网站“智能体接入”创建密钥，写入仓库外的私有文件：
 

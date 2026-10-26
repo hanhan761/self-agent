@@ -7,7 +7,7 @@ name = "self-agent"
 version = "0.1.0"
 description = "A private, source-grounded memory service for personal agents"
 requires-python = ">=3.11"
-dependencies = ["fastapi==0.162.0", "uvicorn==0.54.0", "httpx==0.28.1", "mcp==2.3.0", "jieba==0.42.1", "cryptography==50.0.2"]
+dependencies = ["fastapi==0.162.0", "uvicorn==0.54.0", "httpx==0.28.1", "mcp==2.3.0", "jieba==0.42.1", "cryptography==50.0.2", "PyYAML==6.0.3"]
 
 [project.optional-dependencies]
 semantic = ["mem0ai==2.2.1", "sentence-transformers==6.2.0"]

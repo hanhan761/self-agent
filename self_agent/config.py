@@ -16,6 +16,8 @@ class Config:
     host: str = '127.0.0.1'
     port: int = 8766
     secure_cookie: bool = False
+    cpa_config_file: str = ''
+    cpa_permissions_file: str = ''
     semantic: bool = False
     embedding_model: str = 'BAAI/bge-m3'
     embedding_device: str = 'cpu'

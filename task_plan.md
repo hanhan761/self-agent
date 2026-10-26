@@ -18,3 +18,11 @@ Remaining user-side product step: review the newly installed Codex hooks through
 2. Test and deploy HTTPS support, stage ingress and rollback — complete (55 tests).
 3. User-owned CNAME record — complete; two public resolvers confirmed.
 4. Apply public cutover, verify public HTTPS/auth/MCP and switch client URL — complete.
+
+## CPA authentication and easier onboarding
+
+1. Inspect CPA guide, key registry and policy contract — complete.
+2. Read-only key authentication, isolation, revocation and one-use pairing — complete.
+3. Key login UI, Windows setup bundle and hidden-input CLI — complete.
+4. Checks — 63 tests passed; JavaScript and PowerShell syntax verified.
+5. Immutable deployment and live isolated setup/MCP verification — in progress.

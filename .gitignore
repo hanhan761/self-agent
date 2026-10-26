@@ -15,3 +15,5 @@ dist/
 *.pem
 *.zip
 .local/
+
+self_agent/web/downloads/

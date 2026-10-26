@@ -20,6 +20,7 @@ def main():
     serve=sub.add_parser('serve');serve.add_argument('--host');serve.add_argument('--port',type=int)
     connect=sub.add_parser('connect');connect.add_argument('--url',required=True);connect.add_argument('--token-file',required=True);connect.add_argument('--proxy',help='Explicit optional HTTP(S) network proxy')
     install=sub.add_parser('install-client');install.add_argument('--client',choices=['claude','codex'],required=True)
+    setup_cmd=sub.add_parser('setup');setup_cmd.add_argument('--url',default='https://self-agent.matterswarm.com');setup_cmd.add_argument('--client',choices=['codex','claude','both'],default='codex');setup_cmd.add_argument('--pair-code-stdin',action='store_true');setup_cmd.add_argument('--proxy')
     sub.add_parser('mcp')
     hook=sub.add_parser('hook');hook.add_argument('--client',choices=['claude','codex'],required=True)
     sub.add_parser('inventory-local')
@@ -71,6 +72,9 @@ def main():
         if args.proxy:values['proxy']=args.proxy
         private_file(private_root()/'client.json',json.dumps(values))
         print(json.dumps({'connected':True,'username':response.json()['username']}))
+    elif args.command=='setup':
+        from .onboarding import setup
+        print(json.dumps(setup(args.url,args.client,sys.stdin.readline().strip() if args.pair_code_stdin else None,args.proxy),ensure_ascii=False))
     elif args.command=='install-client':
         from .install import install_client
         print(json.dumps(install_client(args.client),ensure_ascii=False))

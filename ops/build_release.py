@@ -10,6 +10,8 @@ import zipfile
 ROOT=Path(__file__).resolve().parents[1]
 
 def main():
+    from build_client import build_client
+    build_client()
     parser=argparse.ArgumentParser()
     parser.add_argument('--revision',required=True)
     parser.add_argument('--include-semantic',action='store_true')

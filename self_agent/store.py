@@ -19,6 +19,10 @@ CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFER
 CREATE TABLE IF NOT EXISTS projections(memory_id TEXT PRIMARY KEY REFERENCES memories(id), version INTEGER NOT NULL, external_id TEXT, error TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, event TEXT NOT NULL, entity_id TEXT NOT NULL, at REAL NOT NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(memory_id UNINDEXED, words, tokenize='unicode61');
+CREATE TABLE IF NOT EXISTS external_identities(provider TEXT NOT NULL, identity_hash TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(provider,identity_hash));
+CREATE TABLE IF NOT EXISTS session_identities(session_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS api_key_identities(key_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS pairing_codes(hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, expires REAL NOT NULL, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS memory_owner ON memories(user_id,project,status);
 '''
 
