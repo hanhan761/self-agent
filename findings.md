@@ -11,3 +11,7 @@
 - Acceptance: 53 automated checks; live MCP, native provider, backup verification and synthetic restore passed. Retrieval checks: keyword 30/30 and paraphrase 9/10 Top5. One storage-engine paraphrase missed.
 - Browser visual QA remains unperformed because no CUA browser surface was available.
 - Initial and implementation pushes were verified successful; origin/main contains the deployed application release.
+
+## Natural memory implementation
+
+Current source ingestion slices serialized JSON by characters, losing role provenance for long conversations. Existing exact-content deduplication has no source aggregation or conflict resolution. Preserve legacy table layouts with additive side tables; extend archives to v2 while accepting v1. Current-device setup and authenticated stdio search already passed; host Hook trust remains a human step.

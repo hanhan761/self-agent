@@ -224,7 +224,7 @@ def test_chinese_top_five_retrieval(service,title,content,query):
 
 def test_confirmed_format_repair_and_role_provenance(tmp_path):
     source=json.dumps([{'role':'user','content':'请记住，我更喜欢中文。'}],ensure_ascii=False)
-    good=json.dumps({'memories':[{'content':'用户喜欢中文','kind':'preference','evidence':'我更喜欢中文','explicit':True}]},ensure_ascii=False)
+    good=json.dumps({'memories':[{'content':'用户喜欢中文','kind':'preference','evidence':'我更喜欢中文','explicit':True,'scope':'project'}]},ensure_ascii=False)
     provider=XjtuProvider(Config(tmp_path))
     replies=iter(['not-json',good])
     provider.complete=lambda messages:next(replies)
@@ -241,7 +241,7 @@ def test_foreign_semantic_result_cannot_escape_owner(service):
 
 def test_extraction_quotes_match_decoded_transcript(tmp_path):
     source=json.dumps([{'role':'user','content':'请记住路径 C:\\work\\notes，\n后续复用。'}],ensure_ascii=False)
-    reply=json.dumps({'memories':[{'content':'知识路径为 C:\\work\\notes','kind':'fact','evidence':'路径 C:\\work\\notes，\n后续复用','explicit':True}]},ensure_ascii=False)
+    reply=json.dumps({'memories':[{'content':'知识路径为 C:\\work\\notes','kind':'fact','evidence':'路径 C:\\work\\notes，\n后续复用','explicit':True,'scope':'project'}]},ensure_ascii=False)
     provider=XjtuProvider(Config(tmp_path))
     provider.complete=lambda messages:reply
     assert provider.extract(source)[0]['explicit'] is True

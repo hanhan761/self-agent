@@ -16,14 +16,16 @@ def memory_get(memory_id:str)->dict:
     return request('GET','/v1/memories/'+memory_id)
 
 @server.tool()
-def memory_remember(content:str,kind:str='fact',personal:bool=False,title:str='')->dict:
+def memory_remember(content:str,kind:str='fact',personal:bool=False,title:str='',valid_until:float|None=None)->dict:
     """Remember an explicit user fact, preference, decision or procedure."""
-    return request('POST','/v1/memories',body={'content':content,'kind':kind,'title':title,'project':'' if personal else project_id()})
+    return request('POST','/v1/memories',body={'content':content,'kind':kind,'title':title,'project':'' if personal else project_id(),'valid_until':valid_until})
 
 @server.tool()
-def memory_update(memory_id:str,content:str,version:int)->dict:
+def memory_update(memory_id:str,content:str,version:int,valid_until:float|None=None)->dict:
     """Correct an existing memory using the version returned by memory_get."""
-    return request('PATCH','/v1/memories/'+memory_id,body={'content':content,'version':version})
+    body={'content':content,'version':version}
+    if valid_until is not None:body['valid_until']=valid_until
+    return request('PATCH','/v1/memories/'+memory_id,body=body)
 
 @server.tool(annotations=ToolAnnotations(destructiveHint=True))
 def memory_forget(memory_id:str)->dict:

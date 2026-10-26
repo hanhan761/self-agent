@@ -44,6 +44,11 @@ class Index:
                 mid=row['id']
                 try:
                     scope=row['user_id']+':'+row['project']
+                    if row['external_id']:
+                        previous=self.memory.get(row['external_id'])
+                        if previous:
+                            if previous.get('metadata',{}).get('canonical_id')!=mid or not previous.get('user_id','').startswith(row['user_id']+':'):raise ValueError('projection_owner_mismatch')
+                            self.memory.delete(row['external_id'])
                     existing=self.memory.get_all(filters={'user_id':scope,'canonical_id':mid},top_k=10)
                     existing=existing.get('results',[]) if isinstance(existing,dict) else existing
                     for item in existing:

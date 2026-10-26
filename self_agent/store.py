@@ -47,7 +47,9 @@ class Store:
         self.db.execute('PRAGMA foreign_keys=ON')
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA busy_timeout=5000')
-        self.db.executescript(SCHEMA)
+        from .lifecycle import Lifecycle,SCHEMA as LIFECYCLE_SCHEMA
+        self.db.executescript(SCHEMA+LIFECYCLE_SCHEMA)
+        self.lifecycle=Lifecycle(self)
         self.db.commit()
 
     @contextmanager
@@ -107,7 +109,7 @@ class Store:
                 raise KeyError(mid)
             result = dict(row)
             result['history'] = [dict(x) for x in db.execute('SELECT version,content,status,changed FROM versions WHERE memory_id=? ORDER BY version DESC', (mid,))]
-        return result
+            return self.lifecycle.describe(result)
 
     def update(self, uid, mid, *, content=None, status=None, version=None):
         with self.tx() as db:
@@ -136,7 +138,7 @@ class Store:
             sql+=' AND m.project IN (?,?)';params+=['',project]
         sql+=' ORDER BY m.updated DESC LIMIT ? OFFSET ?';params += [min(limit,200),max(offset,0)]
         with self.tx() as db:
-            return [dict(x) for x in db.execute(sql,params)]
+            return [self.get(uid,x['id']) for x in db.execute(sql,params)]
 
     def search(self, uid, query, project='', limit=8):
         terms=list(dict.fromkeys(re.findall(r'[\w]+',words(query))))[:32]

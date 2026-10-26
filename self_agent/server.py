@@ -31,14 +31,18 @@ class MemoryInput(BaseModel):
     project:str=Field(default='',max_length=200)
     title:str=Field(default='',max_length=200)
     kind:str='fact'
+    valid_until:float|None=None
 
 class MemoryPatch(BaseModel):
     content:str|None=Field(default=None,min_length=1,max_length=12000)
     status:str|None=None
     version:int=Field(ge=1)
+    project:str|None=Field(default=None,max_length=200)
+    valid_until:float|None=None
 
 class Ingest(BaseModel):
-    content:str=Field(min_length=1,max_length=120000)
+    content:str=Field(default='',max_length=120000)
+    messages:list[dict]|None=Field(default=None,max_length=2000)
     project:str=Field(default='',max_length=200)
     title:str=Field(default='导入资料',max_length=200)
     kind:str=Field(default='document',max_length=40)
@@ -215,13 +219,16 @@ def create_app(config=None,*,start_worker=True,provider=None):
 
     @app.get('/api/overview')
     def overview(user=Depends(current)):
+        store.lifecycle.expire(user['id'])
         result=store.overview(user['id'])
+        with store.tx() as db:result['cleanup']=[dict(r) for r in db.execute('SELECT id,state,processed,error,created FROM cleanup_jobs WHERE user_id=? ORDER BY created DESC LIMIT 5',(user['id'],))]
         result['provider']={'configured':engine.provider.configured,'model':config.xjtu_model,'name':'交晓智原生 API'}
         result['search']={'semantic':engine.index.memory is not None and not engine.index.error,'state':engine.index.error,'keyword':True}
         return result
 
     @app.get('/v1/memories')
     def listing(project:str|None=None,status:str='active',offset:int=0,user=Depends(current)):
+        store.lifecycle.expire(user['id'])
         return {'items':store.listing(user['id'],project=project,status=status,offset=offset)}
 
     @app.get('/v1/search')
@@ -236,12 +243,20 @@ def create_app(config=None,*,start_worker=True,provider=None):
     def remember(body:MemoryInput,user=Depends(current)):
         writable()
         sid,_=store.source(user['id'],body.project,body.title or '手动记录',body.content)
-        return store.add(user['id'],body.project,body.content,title=body.title,kind=body.kind,source_id=sid)
+        with store.tx():
+            item=store.add(user['id'],body.project,body.content,title=body.title,kind=body.kind,source_id=sid)
+            if item['version']==1 and not item['evidence']:
+                store.lifecycle.metadata(item['id'],valid_until=body.valid_until)
+                store.lifecycle.evidence(user['id'],item['id'],sid,{'evidence':body.content,'explicit':True},item['created'])
+        store.lifecycle.expire(user['id'])
+        return store.get(user['id'],item['id'])
 
     @app.patch('/v1/memories/{mid}')
     def update(mid:str,body:MemoryPatch,user=Depends(current)):
         writable()
-        return store.update(user['id'],mid,**body.model_dump())
+        values=body.model_dump(exclude_unset=True)
+        values['deadline_set']='valid_until' in values
+        return store.lifecycle.patch(user['id'],mid,**values)
 
     @app.delete('/v1/memories/{mid}')
     def forget(mid:str,user=Depends(current)):return store.update(user['id'],mid,status='forgotten')
@@ -249,13 +264,37 @@ def create_app(config=None,*,start_worker=True,provider=None):
     @app.post('/v1/sources',status_code=202)
     def ingest(body:Ingest,user=Depends(current)):
         writable()
-        # Chunk before extraction; each chunk has a stable source identity.
+        from .messages import batches
+        messages=body.messages
+        if messages is None and body.content:
+            try:
+                parsed=json.loads(body.content)
+                if isinstance(parsed,list) and all(isinstance(m,dict) and m.get('role') in ('user','assistant') for m in parsed):messages=parsed
+            except ValueError:pass
+        if messages is not None:
+            envelopes=list(batches(messages))
+            if sum(len(m['content']) for batch in envelopes for m in batch)>120000:raise ValueError('会话超过 120000 字符')
+            chunks=[json.dumps(batch,ensure_ascii=False) for batch in envelopes]
+        else:
+            if not body.content.strip():raise ValueError('资料不能为空')
+            chunks=[body.content[start:start+12000] for start in range(0,len(body.content),12000)]
         ids=[]
-        for number,start in enumerate(range(0,len(body.content),12000)):
-            external=(body.external_id or digest(body.content))+':'+str(number)
-            sid,_=store.source(user['id'],body.project,body.title,body.content[start:start+12000],body.kind,external)
-            ids.append(store.enqueue(user['id'],sid))
+        with store.tx():
+            for number,content in enumerate(chunks):
+                external=(body.external_id or digest(json.dumps(messages,sort_keys=True) if messages is not None else body.content))+':'+str(number)
+                sid,_=store.source(user['id'],body.project,body.title,content,body.kind,external)
+                ids.append(store.enqueue(user['id'],sid))
         return {'jobs':ids,'queued':True}
+
+    @app.post('/v1/changes/{cid}/undo')
+    def undo_change(cid:str,user=Depends(current)):
+        writable()
+        return store.lifecycle.undo(user['id'],cid)
+
+    @app.post('/v1/maintenance/cleanup',status_code=202)
+    def cleanup(user=Depends(current)):
+        writable()
+        return engine.start_cleanup(user['id'])
 
     @app.get('/v1/sources')
     def sources(offset:int=0,user=Depends(current)):

@@ -33,3 +33,13 @@ Remaining user-side product step: review the newly installed Codex hooks through
 2. Public guide/checksum and automatic client bootstrap — complete.
 3. Tests and off-host release — complete (68 tests).
 4. Live full bootstrap in an isolated profile, MCP acceptance, final push — complete.
+
+## Natural memory optimization
+
+1. Structured evidence and scope extraction — complete.
+2. Transactional reconciliation, expiration, provenance and reversible cleanup — complete.
+3. Compatible APIs, website, v2 backup/restore and client changes — complete.
+4. Regression tests and real model acceptance — complete (87 tests, 10 confirmed native calls across six cases). MCP/public acceptance follows deployment.
+5. Off-host release, current-space cleanup, local upgrade and verification — pending.
+
+Defaults: explicit changes auto-replace; personal preferences cross projects; legacy cleanup is reversible; explicit deadlines expire; facts decay at 180-day half-life with 0.8 floor. No guessed fact activation or automatic forgotten-memory resurrection.

@@ -1,0 +1,63 @@
+{
+  "automated_tests": 87,
+  "javascript_syntax": "passed",
+  "native_model": {
+    "passed": true,
+    "model": "qwen3.8-max",
+    "confirmed_native_calls": 10,
+    "stages": [
+      "personal",
+      "equivalent",
+      "replacement",
+      "project_exception",
+      "temporary",
+      "deadline"
+    ],
+    "calls": [
+      {
+        "confirmed": true,
+        "seconds": 2.84
+      },
+      {
+        "confirmed": true,
+        "seconds": 2.32
+      },
+      {
+        "confirmed": true,
+        "seconds": 2.13
+      },
+      {
+        "confirmed": true,
+        "seconds": 2.59
+      },
+      {
+        "confirmed": true,
+        "seconds": 2.46
+      },
+      {
+        "confirmed": true,
+        "seconds": 3.07
+      },
+      {
+        "confirmed": true,
+        "seconds": 1.65
+      },
+      {
+        "confirmed": true,
+        "seconds": 1.9
+      },
+      {
+        "confirmed": true,
+        "seconds": 1.09
+      },
+      {
+        "confirmed": true,
+        "seconds": 2.74
+      }
+    ],
+    "test_data_isolated": true
+  },
+  "staged_source_tree": "cce61b013a6fcf2668b5c85835397606004409a0dc68a00223e83c51b856f20d",
+  "browser_visual_verification": "not yet performed",
+  "interactive_host_hook_trust": "requires user review"
+}

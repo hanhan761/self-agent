@@ -41,12 +41,12 @@ def normalized_messages(filename,client):
                 message=row.get('message',{})
                 content=message.get('content')
                 if isinstance(content,list):content='\n'.join(x['text'] for x in content if isinstance(x,dict) and x.get('type')=='text' and isinstance(x.get('text'),str))
-                if isinstance(content,str):rows.append({'role':row['type'],'content':content})
+                if isinstance(content,str):rows.append({'id':str(row.get('uuid') or hashlib.sha256(raw.encode()).hexdigest()),'role':row['type'],'content':content,'observed_at':row.get('timestamp')})
             elif client=='codex' and row.get('type')=='response_item':
                 item=row.get('payload',{})
                 if item.get('type')!='message' or item.get('role') not in ('user','assistant'):continue
                 content='\n'.join(x['text'] for x in item.get('content',[]) if isinstance(x,dict) and x.get('type') in ('input_text','output_text') and isinstance(x.get('text'),str))
-                if content:rows.append({'role':item['role'],'content':content})
+                if content:rows.append({'id':hashlib.sha256(raw.encode()).hexdigest(),'role':item['role'],'content':content,'observed_at':row.get('timestamp')})
     return rows
 
 
@@ -54,7 +54,8 @@ def redact_secrets(text):
     import re
     if any(w in text.lower() for w in SECRET_WORDS):return '[包含凭据材料，已排除本段]'
     text=re.sub(r'\b(?:sk-|sa_)[A-Za-z0-9_-]{12,}\b','[REDACTED]',text)
-    text=re.sub(r'(?im)((?:api[_ -]?key|token|password|secret|密码|密钥)\s*[:=：]\s*)\S+',r'\1[REDACTED]',text)
+    text=re.sub(r'(?im)((?:api[_ -]?key|token|password|secret|密码|密钥|配对码|pair[_ -]?code)\s*[:=：]\s*)\S+',r'\1[REDACTED]',text)
+    text=re.sub(r'(?i)\bBearer\s+[A-Za-z0-9_.~-]{12,}','Bearer [REDACTED]',text)
     return text
 
 
@@ -83,9 +84,10 @@ def handle(client,event):
         new=rows[previous:]
         if not new:return {}
         # Send bounded chunks; only advance the cursor after all are acknowledged.
-        text=redact_secrets(json.dumps(new,ensure_ascii=False))
-        for start in range(0,len(text),12000):
-            request('POST','/v1/sources',body={'content':text[start:start+12000],'title':client+' 会话增量','project':project,'kind':'conversation','external_id':identity+':'+str(previous)+':'+str(start)},timeout=2)
+        from .messages import batches
+        clean=[{**message,'content':redact_secrets(message['content'])} for message in new]
+        for number,batch in enumerate(batches(clean)):
+            request('POST','/v1/sources',body={'messages':batch,'title':client+' 会话增量','project':project,'kind':'conversation','external_id':identity+':'+str(previous)+':'+str(number)},timeout=2)
         temp=cursor.with_suffix('.tmp')
         temp.write_text(json.dumps({'count':len(rows)}),'utf-8');temp.replace(cursor)
     return {}
@@ -93,9 +95,13 @@ def handle(client,event):
 
 def main(client):
     try:
-        event=json.loads(sys.stdin.read(1024**2))
+        raw=sys.stdin.buffer.read(1024**2).decode('utf-8') if hasattr(sys.stdin,'buffer') else sys.stdin.read(1024**2)
+        event=json.loads(raw)
         result=handle(client,event)
-        if result:print(json.dumps(result,ensure_ascii=False))
+        if result:
+            output=json.dumps(result,ensure_ascii=False)+'\n'
+            if hasattr(sys.stdout,'buffer'):sys.stdout.buffer.write(output.encode('utf-8'))
+            else:sys.stdout.write(output)
     except Exception:
         # Fail open for agent work. Keep the original transcript for later capture.
         return
