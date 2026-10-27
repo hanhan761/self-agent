@@ -67,12 +67,17 @@ class Index:
                     return
             self.error=''
 
-    def search_ids(self,uid,query,project):
+    def search_hits(self,uid,query,project):
         if not self.memory:return []
         result=[]
         with self.lock:
             for scope in dict.fromkeys([uid+':',uid+':'+project]):
                 found=self.memory.search(query,filters={'user_id':scope},top_k=20)
                 items=found.get('results',[]) if isinstance(found,dict) else found
-                result.extend(x.get('metadata',{}).get('canonical_id') for x in items)
+                for item in items:
+                    meta=item.get('metadata',{});score=float(item.get('score') or 0)
+                    if meta.get('canonical_id'):result.append({'id':meta['canonical_id'],'version':meta.get('version'),'score':score,'semantic_score':score})
         return result
+
+    def search_ids(self,uid,query,project):
+        return [hit['id'] for hit in self.search_hits(uid,query,project)]

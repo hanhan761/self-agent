@@ -2,6 +2,9 @@ import threading
 import time
 from .index import Index
 from .provider import XjtuProvider
+from .capacity import Capacity,Backpressure
+
+class ReconciliationUnavailable(RuntimeError):pass
 
 class Engine:
     def __init__(self,config,store,provider=None):
@@ -13,53 +16,80 @@ class Engine:
         else:self.index=Index(config,store)
         self.stop_event=threading.Event()
         self.thread=None
+        self.scheduler=None
+        self.worker_error=''
 
     def start(self):
+        from datetime import datetime,timezone
+        import logging
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.executors.pool import ThreadPoolExecutor
+        from apscheduler.events import EVENT_JOB_ERROR
         with self.store.tx() as db:
             db.execute("UPDATE jobs SET state='uncertain',error='interrupted_request' WHERE state='running'")
             db.execute("UPDATE cleanup_jobs SET state='uncertain',error='interrupted_request' WHERE state='running'")
-        self.thread=threading.Thread(target=self._loop,name='self-agent-worker',daemon=True)
-        self.thread.start()
+        logging.getLogger('apscheduler.scheduler').setLevel(logging.ERROR)
+        self.scheduler=BackgroundScheduler(executors={name:ThreadPoolExecutor(1) for name in ('capture','generation','index')},
+                    job_defaults={'coalesce':True,'max_instances':1,'misfire_grace_time':5},timezone=timezone.utc)
+        self.scheduler.add_listener(lambda event:setattr(self,'worker_error',type(event.exception).__name__),EVENT_JOB_ERROR)
+        for name,fn,seconds in [('capture',self._capture_tick,.5),('generation',self._generation_tick,.5),('index',self._index_tick,1)]:
+            self.scheduler.add_job(fn,'interval',seconds=seconds,id=name,executor=name,next_run_time=datetime.now(timezone.utc))
+        self.scheduler.start()
 
     def close(self):
         self.stop_event.set()
-        if self.thread:self.thread.join(timeout=2)
+        if self.scheduler:self.scheduler.shutdown(wait=True)
         if hasattr(self.index,'close'):self.index.close()
 
-    def _loop(self):
-        self.index.start()
-        while not self.stop_event.is_set():
-            if self.config.local:
-                from .spool import drain
-                drain(self.config,self.store)
-            self.store.lifecycle.expire()
-            self.process_one()
-            self.process_cleanup_one()
-            self.index.sync()
-            self.stop_event.wait(1)
+    def _capture_tick(self):
+        if self.stop_event.is_set():return
+        if self.config.local:
+            from .spool import drain
+            drain(self.config,self.store)
+        self.store.lifecycle.expire()
+
+    def _generation_tick(self):
+        if self.stop_event.is_set():return
+        if not self.process_one():self.process_cleanup_one()
+
+    def _index_tick(self):
+        if self.stop_event.is_set():return
+        if self.index.error=='not_loaded':self.index.start()
+        self.index.sync()
 
     def process_one(self):
-        if not self.provider.configured:return False
+        if not self.provider.configured or not getattr(self.index,'ready_for_reconcile',True):return False
         with self.store.tx() as db:
             row=db.execute("SELECT j.*,s.content,s.project FROM jobs j JOIN sources s ON s.id=j.source_id WHERE j.state='pending' AND j.next_at<=? ORDER BY j.created LIMIT 1",(time.time(),)).fetchone()
             if not row:return False
             job=dict(row)
+        try:Capacity(self.config).check(1024**2)
+        except Backpressure:return False
         if hasattr(self.provider,'preflight'):
             try:self.provider.preflight()
             except Exception as exc:
                 with self.store.tx() as db:db.execute('UPDATE jobs SET next_at=?,error=? WHERE id=?',(time.time()+30,type(exc).__name__,job['id']))
                 return False
         with self.store.tx() as db:
-            db.execute("UPDATE jobs SET state='running',attempts=attempts+1 WHERE id=?",(job['id'],))
+            if not db.execute("UPDATE jobs SET state='running',attempts=attempts+1 WHERE id=? AND state='pending'",(job['id'],)).rowcount:return False
         try:
-            extracted=self.provider.extract(job['content'])
+            import json
+            with self.store.tx() as db:cached=db.execute('SELECT items,next_item FROM job_extractions WHERE job_id=?',(job['id'],)).fetchone()
+            if cached:extracted=json.loads(cached['items']);offset=cached['next_item']
+            else:
+                extracted=self.provider.extract(job['content']);offset=0
+                with self.store.tx() as db:db.execute('INSERT INTO job_extractions VALUES(?,?,0)',(job['id'],json.dumps(extracted,ensure_ascii=False)))
             with self.store.tx() as db:source=dict(db.execute('SELECT * FROM sources WHERE id=? AND user_id=?',(job['source_id'],job['user_id'])).fetchone())
-            # Reconcile sequentially so items from the same complete reply see one another.
-            # Network requests run outside SQLite transactions; each action is atomic/idempotent.
-            for item in extracted:
+            # Complete validated extraction is checkpointed before infrastructure deferrals.
+            for position,item in enumerate(extracted[offset:],offset):
                 candidates,decision=self.prepare(job['user_id'],source,item)
-                self.store.lifecycle.apply(job['user_id'],source,item,decision,candidates)
+                Capacity(self.config).check(len(item['content'].encode())*4+32768)
+                with self.store.tx() as db:
+                    self.store.lifecycle.apply(job['user_id'],source,item,decision,candidates)
+                    db.execute('UPDATE job_extractions SET next_item=? WHERE job_id=?',(position+1,job['id']))
             with self.store.tx() as db:db.execute("UPDATE jobs SET state='done',error='' WHERE id=?",(job['id'],))
+        except (Backpressure,ReconciliationUnavailable) as exc:
+            with self.store.tx() as db:db.execute("UPDATE jobs SET state='pending',next_at=?,error=? WHERE id=?",(time.time()+5,getattr(exc,'reason','index_unavailable'),job['id']))
         except Exception as exc:
             state='failed' if isinstance(exc,ValueError) else 'uncertain'
             with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,error=? WHERE id=?',(state,type(exc).__name__,job['id']))
@@ -67,8 +97,12 @@ class Engine:
 
     def prepare(self,uid,source,item,exclude=None):
         scope='' if item.get('scope')=='personal' else source['project']
-        try:semantic=self.index.search_ids(uid,item['content'],scope)
-        except Exception:semantic=[]
+        try:
+            nominate=getattr(self.index,'candidate_ids',self.index.search_ids)
+            semantic=nominate(uid,item['content'],scope)
+        except Exception as exc:
+            if self.config.index_backend=='mcp-memory-service' and self.config.semantic:raise ReconciliationUnavailable() from exc
+            semantic=[]
         candidates=[m for m in self.store.lifecycle.candidates(uid,scope,item,semantic) if m['id']!=exclude]
         if scope:
             personal=[m for m in self.store.lifecycle.candidates(uid,'',item,semantic) if m['status']=='active'][:4]
@@ -89,7 +123,7 @@ class Engine:
             return {'id':jid,'queued':True}
 
     def process_cleanup_one(self):
-        if not self.provider.configured:return False
+        if not self.provider.configured or not getattr(self.index,'ready_for_reconcile',True):return False
         with self.store.tx() as db:
             job=db.execute("SELECT * FROM cleanup_jobs WHERE state IN ('pending','running') ORDER BY created LIMIT 1").fetchone()
             if not job:return False
@@ -100,6 +134,12 @@ class Engine:
             mid=row[0]
             db.execute("UPDATE cleanup_jobs SET state='running' WHERE id=?",(job['id'],))
             db.execute("UPDATE cleanup_items SET state='running' WHERE job_id=? AND memory_id=?",(job['id'],mid))
+        try:Capacity(self.config).check(1024**2)
+        except Backpressure:
+            with self.store.tx() as db:
+                db.execute("UPDATE cleanup_jobs SET state='pending' WHERE id=?",(job['id'],))
+                db.execute("UPDATE cleanup_items SET state='pending' WHERE job_id=? AND memory_id=?",(job['id'],mid))
+            return False
         try:
             memory=self.store.get(job['user_id'],mid)
             if memory['status'] in ('active','candidate') and memory['source_id']:
@@ -136,30 +176,66 @@ class Engine:
                 db.execute("UPDATE cleanup_jobs SET state='uncertain',error=? WHERE id=?",(type(exc).__name__,job['id']))
         return True
 
-    def search(self,uid,query,project='',limit=8):
+    def context(self,uid,project='',limit=8):
+        """No-query startup context: bounded confirmed defaults, not semantic neighbors."""
+        from itertools import zip_longest
         self.store.lifecycle.expire(uid)
-        ranked=self.store.search(uid,query,project,limit=30)
-        ranked=[self.store.get(uid,x['id']) for x in ranked]
-        by_id={x['id']:x for x in ranked}
-        scores={x['id']:1/(60+i) for i,x in enumerate(ranked)}
-        try:ids=self.index.search_ids(uid,query,project)
-        except Exception:ids=[]
-        for i,mid in enumerate(ids):
-            if not mid:continue
-            try:item=self.store.get(uid,mid)
+        groups=[]
+        with self.store.tx() as db:
+            for scope in dict.fromkeys(['',project]):
+                ids=[r[0] for r in db.execute("SELECT id FROM memories WHERE user_id=? AND project=? AND status='active' AND kind IN ('preference','decision','procedure') ORDER BY updated DESC LIMIT ?",(uid,scope,limit))]
+                groups.append([self.store.brief(uid,mid) for mid in ids])
+        pool=[m for batch in zip_longest(*groups) for m in batch if m and m['effective_state']!='expired']
+        topics={m['topic'] for m in pool if m['project']==project and project and m['topic']}
+        overridden={r['target_id'] for m in pool if m['project']==project and project for r in m['relations'] if r['relation']=='overrides'}
+        return [m for m in pool if m['id'] not in overridden and not (not m['project'] and m['topic'] in topics)][:limit]
+
+    def search(self,uid,query,project='',limit=8):
+        from .store import search_terms
+        self.store.lifecycle.expire(uid)
+        query_terms=set(search_terms(query))
+        if not query_terms:return []
+        def lexical(item):
+            terms=set(search_terms(item['content']+' '+item['title']+' '+item.get('topic','')))
+            return sum(len(t) for t in query_terms&terms)/max(1,sum(len(t) for t in query_terms))
+        found={};scores={}
+        try:
+            if hasattr(self.index,'search_hits'):hits=self.index.search_hits(uid,query,project)
+            else:hits=[{'id':mid,'score':0,'semantic_score':0} for mid in self.index.search_ids(uid,query,project)]
+        except Exception:hits=[]
+        for hit in hits:
+            try:item=self.store.brief(uid,hit['id'])
             except KeyError:continue
             if item['status']!='active' or item['effective_state']=='expired' or item['project'] not in ('',project):continue
-            by_id[mid]=item
-            scores[mid]=scores.get(mid,0)+1/(60+i)
-        # Facts gently lose priority; durable preferences and decisions do not expire by age.
-        for mid in scores:
-            item=by_id[mid]
-            if item['kind']=='fact':scores[mid]*=0.8+0.2*2**(-max(0,time.time()-item['observed_at'])/(180*86400))
-        # A topic-specific project exception overrides a personal default without rewriting it.
-        topics={m.get('topic') for m in by_id.values() if m['project']==project and project and m.get('topic')}
-        overridden={r['target_id'] for m in by_id.values() if m['project']==project and project for r in m.get('relations',[]) if r['relation']=='overrides' and r['source_id']==m['id'] and m['status']=='active'}
-        for mid in list(scores):
-            if mid in overridden or not by_id[mid]['project'] and by_id[mid].get('topic') in topics:del scores[mid]
-        result=[by_id[mid] for mid in sorted(scores,key=scores.get,reverse=True)[:limit]]
-        for item in result:item['score']=scores[item['id']]
+            if hit.get('version') is not None and hit['version']!=item['version']:continue
+            coverage=lexical(item)
+            if hit.get('semantic_score',0)<self.config.min_recall_similarity and coverage<self.config.min_lexical_coverage:continue
+            found[item['id']]=item;scores[item['id']]=max(float(hit.get('score',0)),coverage*.7)
+        for raw in self.store.search(uid,query,project,limit=30):
+            item=self.store.brief(uid,raw['id']);coverage=lexical(item)
+            if coverage<self.config.min_lexical_coverage or item['effective_state']=='expired':continue
+            if item['id'] not in found:found[item['id']]=item;scores[item['id']]=coverage*.7
+        if self.config.semantic and hasattr(self.index,'rerank'):
+            pool=sorted(found.values(),key=lambda m:scores[m['id']],reverse=True)[:24]
+            ranked=self.index.rerank(query,pool)
+            if ranked is None:
+                # Model unavailable: retain only meaningful literal matches, never a forced vector hit.
+                found={m['id']:m for m in pool if lexical(m)>=.6}
+            else:
+                scores={m['id']:m['score'] for m in ranked if m['id'] in found and m['score']>=self.config.min_rerank_score}
+                found={mid:m for mid,m in found.items() if mid in scores}
+        for mid,item in list(found.items()):
+            # A concurrent edit/remove during reranking must take effect before returning context.
+            current=self.store.brief(uid,mid)
+            if current['version']!=item['version'] or current['status']!='active' or current['effective_state']=='expired':
+                del found[mid];continue
+            if item['kind']=='fact':scores[mid]*=.8+.2*2**(-max(0,time.time()-item['observed_at'])/(180*86400))
+        topics={m['topic'] for m in found.values() if m['project']==project and project and m['topic']}
+        overridden={r['target_id'] for m in found.values() if m['project']==project and project for r in m['relations'] if r['relation']=='overrides' and r['source_id']==m['id']}
+        result=[]
+        for mid in sorted(found,key=lambda key:scores[key],reverse=True):
+            item=found[mid]
+            if mid in overridden or not item['project'] and item['topic'] in topics:continue
+            item['score']=scores[mid];result.append(item)
+            if len(result)>=limit:break
         return result

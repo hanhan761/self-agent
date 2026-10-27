@@ -1,4 +1,4 @@
-import hashlib,json,time
+import hashlib,json,os,time
 from pathlib import Path
 import pytest
 from self_agent.config import Config
@@ -195,3 +195,154 @@ def test_shortcut_does_not_require_inherited_appdata(tmp_path,monkeypatch):
     monkeypatch.setattr(client_module,'Dispatch',lambda name:Shell())
     create_shortcut({'python':str(tmp_path/'python.exe'),'source':str(tmp_path)})
     assert shortcut.saved
+
+
+@pytest.mark.skipif(os.name!='nt',reason='Windows extended-length paths')
+@pytest.mark.parametrize('client',['codex','claude'])
+def test_extended_transcript_capture_uses_one_cursor(tmp_path,monkeypatch,client):
+    from datetime import datetime,timezone
+    home=tmp_path/'home'
+    transcript=home/('.codex' if client=='codex' else '.claude')/'session.jsonl'
+    transcript.parent.mkdir(parents=True)
+    monkeypatch.setattr(Path,'home',classmethod(lambda cls:home))
+    timestamp=datetime.now(timezone.utc).isoformat()
+    if client=='codex':
+        row={'type':'response_item','timestamp':timestamp,'payload':{'type':'message','role':'user',
+             'content':[{'type':'input_text','text':'请使用中文说明。'}]}}
+    else:
+        row={'type':'user','uuid':'fixture-message','timestamp':timestamp,'message':{'content':'请使用中文说明。'}}
+    transcript.write_text(json.dumps(row,ensure_ascii=False)+'\n',encoding='utf-8')
+    config={'local_data_dir':str(tmp_path/'local'),'local_started_at':time.time()-10}
+    capture(config,client,{'transcript_path':'\\\\?\\'+str(transcript.resolve())},'fixture-project')
+    capture(config,client,{'transcript_path':str(transcript)},'fixture-project')
+    data=Path(config['local_data_dir'])
+    assert len(list((data/'inbox').glob('*.json')))==1
+    cursors=list((data/'cursors').glob('*.json'))
+    assert len(cursors)==1 and json.loads(cursors[0].read_text())['count']==1
+
+
+@pytest.mark.skipif(os.name!='nt',reason='Windows extended-length paths')
+@pytest.mark.parametrize('extended',[False,True])
+def test_transcript_scope_still_rejects_outside_home(tmp_path,monkeypatch,extended):
+    from self_agent.hooks import normalized_messages
+    home=tmp_path/'home';home.mkdir()
+    monkeypatch.setattr(Path,'home',classmethod(lambda cls:home))
+    transcript=tmp_path/'outside.jsonl';transcript.write_text('{}\n')
+    filename=('\\\\?\\' if extended else '')+str(transcript.resolve())
+    with pytest.raises(ValueError,match='untrusted_transcript_path'):
+        normalized_messages(filename,'codex')
+
+
+@pytest.mark.skipif(os.name!='nt',reason='Windows PowerShell hook launch')
+def test_codex_installed_hook_captures_through_powershell(tmp_path,monkeypatch):
+    import shutil,subprocess,sys
+    from datetime import datetime,timezone
+    from self_agent import install
+    home=tmp_path/"用户's home";source=tmp_path/"agent's source space"
+    source.mkdir();(source/'scripts').mkdir()
+    original=Path(__file__).resolve().parents[1]
+    shutil.copytree(original/'self_agent',source/'self_agent',ignore=shutil.ignore_patterns('__pycache__'))
+    shutil.copyfile(original/'scripts/hook_runner.py',source/'scripts/hook_runner.py')
+    monkeypatch.setattr(install,'private_root',lambda:tmp_path/'private')
+    install.install_client('codex',home=home,repo=source,python=sys.executable)
+    hooks=json.loads((home/'.codex/hooks.json').read_text(encoding='utf-8'))
+    command=hooks['hooks']['Stop'][0]['hooks'][0]['command']
+    transcript=home/'.codex/session.jsonl'
+    row={'type':'response_item','timestamp':datetime.now(timezone.utc).isoformat(),'payload':{'type':'message',
+         'role':'user','content':[{'type':'input_text','text':'隔离测试：请使用中文。'}]}}
+    transcript.write_text(json.dumps(row,ensure_ascii=False)+'\n',encoding='utf-8')
+    client_file=tmp_path/'client.json';data=tmp_path/'data'
+    client_file.write_text(json.dumps({'local':True,'url':'http://127.0.0.1:1',
+                                      'local_data_dir':str(data),'local_started_at':time.time()-60}),encoding='utf-8')
+    env={**os.environ,'USERPROFILE':str(home),'SELF_AGENT_CLIENT_CONFIG':str(client_file)}
+    shell=Path(os.environ.get('SystemRoot','C:/Windows'))/'System32/WindowsPowerShell/v1.0/powershell.exe'
+    for filename in ['\\\\?\\'+str(transcript.resolve()),str(transcript)]:
+        event={'hook_event_name':'Stop','cwd':str(home),'transcript_path':filename}
+        result=subprocess.run([str(shell),'-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',command],
+            input=json.dumps(event,ensure_ascii=False).encode('utf-8'),capture_output=True,cwd=home,env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW,timeout=12)
+        assert result.returncode==0,result.stderr.decode('utf-8',errors='replace')
+    inbox=list((data/'inbox').glob('*.json'));assert len(inbox)==1
+    assert json.loads(inbox[0].read_text(encoding='utf-8'))['messages'][0]['content']=='隔离测试：请使用中文。'
+    assert len(list((data/'cursors').glob('*.json')))==1
+    # The same shell path must preserve Chinese recall context on stdout.
+    from http.server import BaseHTTPRequestHandler,HTTPServer
+    from threading import Thread
+    class RecallHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            payload=json.dumps({'items':[{'id':'fixture-memory','content':'中文记忆：知识库存放于数据盘。'}]},ensure_ascii=False).encode('utf-8')
+            self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(payload)));self.end_headers();self.wfile.write(payload)
+        def log_message(self,*args):pass
+    server=HTTPServer(('127.0.0.1',0),RecallHandler);worker=Thread(target=server.serve_forever,daemon=True);worker.start()
+    token_file=tmp_path/'fixture.token';token_file.write_text('isolated-test-token')
+    client_file.write_text(json.dumps({'url':'http://127.0.0.1:'+str(server.server_port),'token_file':str(token_file)}),encoding='utf-8')
+    try:
+        event={'hook_event_name':'UserPromptSubmit','cwd':str(home),'prompt':'中文问题'}
+        result=subprocess.run([str(shell),'-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',command],
+            input=json.dumps(event,ensure_ascii=False).encode('utf-8'),capture_output=True,cwd=home,env=env,
+            creationflags=subprocess.CREATE_NO_WINDOW,timeout=12)
+        assert result.returncode==0,result.stderr.decode('utf-8',errors='replace')
+        context=json.loads(result.stdout.decode('utf-8'))['hookSpecificOutput']['additionalContext']
+        assert '中文记忆：知识库存放于数据盘。' in context
+    finally:server.shutdown();server.server_close();worker.join(timeout=2)
+    # Reinstall/uninstall must recognize the corrected command and preserve other tools.
+    hook_file=home/'.codex/hooks.json';settings=json.loads(hook_file.read_text(encoding='utf-8'))
+    settings['hooks']['Stop'][0]['hooks'].append({'type':'command','command':'other-tool'})
+    hook_file.write_text(json.dumps(settings),encoding='utf-8')
+    install.install_client('codex',home=home,repo=source,python=sys.executable)
+    settings=json.loads(hook_file.read_text(encoding='utf-8'))
+    assert len([h for group in settings['hooks']['Stop'] for h in group['hooks']])==2
+    install.remove_client('codex',home=home,repo=source)
+    settings=json.loads(hook_file.read_text(encoding='utf-8'))
+    assert settings['hooks']['Stop'][0]['hooks']==[{'type':'command','command':'other-tool'}]
+
+
+@pytest.mark.parametrize('event_name',['SessionStart','UserPromptSubmit'])
+def test_local_input_capture_survives_recall_failure(tmp_path,monkeypatch,event_name):
+    from self_agent import hooks,client,spool
+    captured=[]
+    monkeypatch.setattr(hooks,'project_id',lambda *a:'project-a')
+    monkeypatch.setattr(client,'client_config',lambda:{'local':True})
+    monkeypatch.setattr(spool,'capture',lambda *args:captured.append(args))
+    def offline(*a,**k):raise OSError('offline')
+    monkeypatch.setattr(hooks,'request',offline)
+    with pytest.raises(OSError):hooks.handle('codex',{'hook_event_name':event_name,'transcript_path':'fixture'})
+    assert len(captured)==1 and captured[0][3]=='project-a'
+
+
+def test_prompt_and_stop_share_durable_incremental_cursor(tmp_path,monkeypatch):
+    from self_agent import hooks,client
+    rows=[{'id':'u','role':'user','content':'希望界面简单','observed_at':time.time()}]
+    monkeypatch.setattr(hooks,'normalized_messages',lambda *a:list(rows))
+    monkeypatch.setattr(hooks,'project_id',lambda *a:'project-a')
+    monkeypatch.setattr(client,'client_config',lambda:{'local':True,'local_data_dir':str(tmp_path),'local_started_at':0})
+    monkeypatch.setattr(hooks,'request',lambda *a,**k:{'items':[]})
+    event={'transcript_path':str(tmp_path/'fixture'),'hook_event_name':'UserPromptSubmit'}
+    hooks.handle('codex',event);hooks.handle('codex',{**event,'hook_event_name':'Stop'})
+    assert len(list((tmp_path/'inbox').glob('*.json')))==1
+    rows.append({'id':'a','role':'assistant','content':'本轮回复完成','observed_at':time.time()})
+    hooks.handle('codex',{**event,'hook_event_name':'Stop'})
+    assert len(list((tmp_path/'inbox').glob('*.json')))==2
+    assert json.loads(next((tmp_path/'cursors').glob('*.json')).read_text())['count']==2
+
+
+def test_input_confirmation_keeps_bounded_prior_answer_without_extra_model_job(tmp_path,monkeypatch):
+    from self_agent import hooks
+    rows=[{'id':'u0','role':'user','content':'请给出存储建议','observed_at':time.time()}]
+    monkeypatch.setattr(hooks,'normalized_messages',lambda *a:list(rows))
+    root=tmp_path/'data';config={'local_data_dir':str(root),'local_started_at':0};event={'transcript_path':str(tmp_path/'fixture')}
+    root.mkdir(exist_ok=True);store=Store(root/'memory.sqlite3')
+    uid=Auth(store).create_user('local','long-enough-password');cfg=Config(root,local=True,local_user_id=uid)
+    capture(config,'codex',event,'project-a');drain(cfg,store)
+    rows.append({'id':'a0','role':'assistant','content':'建议保存在数据盘。'+'背景'*900,'observed_at':time.time()})
+    capture(config,'codex',event,'project-a');drain(cfg,store)
+    assert store.db.execute('select count(*) from sources').fetchone()[0]==2
+    assert store.db.execute('select count(*) from jobs').fetchone()[0]==1
+    rows.append({'id':'u1','role':'user','content':'可以的，按这个做','observed_at':time.time()})
+    capture(config,'codex',event,'project-a')
+    payload=json.loads(next((root/'inbox').glob('*.json')).read_text())
+    assert [m['role'] for m in payload['messages']]==['assistant','user']
+    assert len(payload['messages'][0]['content'])<=1200 and payload['messages'][0]['content'].startswith('建议保存在数据盘。')
+    assert payload['messages'][1]['content']=='可以的，按这个做'
+    drain(cfg,store);assert store.db.execute('select count(*) from jobs').fetchone()[0]==2
+    store.close()

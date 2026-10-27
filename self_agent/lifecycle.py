@@ -1,5 +1,5 @@
 """Evidence, reversible reconciliation and expiry over authoritative SQLite rows."""
-import difflib,json,math,secrets,time
+import json,math,secrets,time
 
 SCHEMA='''
 CREATE TABLE IF NOT EXISTS memory_metadata(memory_id TEXT PRIMARY KEY REFERENCES memories(id), observed_at REAL NOT NULL, valid_until REAL, topic TEXT NOT NULL DEFAULT '', reason TEXT NOT NULL DEFAULT '');
@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS memory_relations(id TEXT PRIMARY KEY, user_id TEXT NO
 CREATE TABLE IF NOT EXISTS memory_changes(id TEXT PRIMARY KEY, user_id TEXT NOT NULL, action TEXT NOT NULL, snapshots TEXT NOT NULL, after_versions TEXT NOT NULL, created REAL NOT NULL, undone INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS learning_applied(user_id TEXT NOT NULL, source_id TEXT NOT NULL, fingerprint TEXT NOT NULL, memory_id TEXT, PRIMARY KEY(user_id,source_id,fingerprint));
 CREATE TABLE IF NOT EXISTS cleanup_jobs(id TEXT PRIMARY KEY, user_id TEXT NOT NULL, state TEXT NOT NULL, cursor TEXT NOT NULL DEFAULT '', processed INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '', created REAL NOT NULL);
+CREATE INDEX IF NOT EXISTS memory_expiry ON memory_metadata(valid_until) WHERE valid_until IS NOT NULL;
+CREATE INDEX IF NOT EXISTS memory_topic ON memory_metadata(topic,memory_id);
+CREATE INDEX IF NOT EXISTS relation_source ON memory_relations(user_id,source_id,relation);
+CREATE INDEX IF NOT EXISTS relation_target ON memory_relations(user_id,target_id);
 CREATE TABLE IF NOT EXISTS cleanup_items(job_id TEXT NOT NULL REFERENCES cleanup_jobs(id), memory_id TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(job_id,memory_id));
 '''
 
@@ -61,16 +65,31 @@ class Lifecycle:
             self.store.db.execute('INSERT OR IGNORE INTO memory_evidence VALUES(?,?,?,?,?)',(mid,sid,'source',quote,observed))
 
     def candidates(self,uid,project,item,semantic_ids=()):
-        from .store import words,fingerprint
+        """Blend bounded upstream nominations with indexed canonical fallbacks."""
+        from itertools import zip_longest
+        from .store import fingerprint,search_terms
+        semantic=list(dict.fromkeys(x for x in semantic_ids if x))[:24]
+        terms=search_terms(item['content'])[:12]
         with self.store.tx() as db:
-            rows=[dict(r) for r in db.execute('SELECT * FROM memories WHERE user_id=? AND project=? AND kind=?',(uid,project,item['kind']))]
-        tokens=set(words(item['content']).split());semantic=set(semantic_ids)
-        def rank(m):
-            same=fingerprint(m['content'])==fingerprint(item['content'])
-            terms=set(words(m['content']).split())
-            score=len(tokens&terms)/max(1,len(tokens|terms))+difflib.SequenceMatcher(None,item['content'],m['content']).ratio()
-            return (same,m['id'] in semantic,score,m['updated'])
-        return [self.store.get(uid,r['id']) for r in sorted(rows,key=rank,reverse=True)[:8]]
+            exact=[r[0] for r in db.execute('SELECT id FROM memories WHERE user_id=? AND project=? AND fingerprint=?',(uid,project,fingerprint(item['content'])))]
+            allowed=set()
+            if semantic:
+                placeholders=','.join('?' for _ in semantic)
+                allowed={r[0] for r in db.execute('SELECT id FROM memories WHERE user_id=? AND project=? AND id IN ('+placeholders+')',[uid,project,*semantic])}
+            semantic=[mid for mid in semantic if mid in allowed]
+            lexical=[]
+            if terms:
+                expression=' OR '.join('"'+t+'"' for t in terms)
+                lexical=[r[0] for r in db.execute('SELECT m.id FROM memory_fts f CROSS JOIN memories m ON m.id=f.memory_id WHERE memory_fts MATCH ? AND m.user_id=? AND m.project=? ORDER BY f.rank LIMIT 8',(expression,uid,project))]
+            topical=[r[0] for r in db.execute('SELECT m.id FROM memory_metadata x JOIN memories m ON m.id=x.memory_id WHERE x.topic=? AND m.user_id=? AND m.project=? ORDER BY m.updated DESC LIMIT 8',(item.get('topic',''),uid,project))] if item.get('topic') else []
+            recent=[r[0] for r in db.execute('SELECT id FROM memories WHERE user_id=? AND project=? AND kind=? ORDER BY updated DESC LIMIT 8',(uid,project,item['kind']))]
+        selected=list(exact)
+        for group in zip_longest(semantic,lexical,topical,recent):
+            for mid in group:
+                if mid and mid not in selected:selected.append(mid)
+                if len(selected)>=8:break
+            if len(selected)>=8:break
+        return [self.store.brief(uid,mid) for mid in selected]
 
     def apply(self,uid,source,item,decision,candidates,*,legacy=None,legacy_version=None):
         from .store import fingerprint
@@ -93,7 +112,7 @@ class Lifecycle:
             if old:
                 latest=self.store.get(uid,tid)
                 if latest['version']!=decision.get('target_version'):raise ValueError('concurrent_memory_change')
-                if latest['project']!=project or latest['kind']!=item['kind']:raise ValueError('cross_scope_reconciliation')
+                if latest['project']!=project or latest['kind']!=item['kind'] and relation!='equivalent':raise ValueError('cross_scope_reconciliation')
                 old=latest
             exact=db.execute('SELECT id FROM memories WHERE user_id=? AND project=? AND fingerprint=?',(uid,project,fp)).fetchone()
             if exact and (not legacy or exact[0]!=legacy):
@@ -147,7 +166,7 @@ class Lifecycle:
 
     def expire(self,uid=None):
         with self.store.tx() as db:
-            sql="SELECT m.id,m.user_id FROM memories m JOIN memory_metadata x ON x.memory_id=m.id WHERE m.status='active' AND x.valid_until<=?"
+            sql="SELECT m.id,m.user_id FROM memory_metadata x CROSS JOIN memories m ON m.id=x.memory_id WHERE x.valid_until<=? AND m.status='active'"
             args=[time.time()]
             if uid:sql+=' AND m.user_id=?';args.append(uid)
             for row in list(db.execute(sql,args)):
@@ -180,6 +199,18 @@ class Lifecycle:
             db.execute('DELETE FROM memory_relations WHERE change_id=? AND user_id=?',(cid,uid))
             db.execute('UPDATE memory_changes SET undone=1 WHERE id=?',(cid,))
         return {'undone':True}
+
+    def restore(self,uid,mid,version):
+        """Only the explicit management action may restore a removed memory."""
+        with self.store.tx():
+            old=self.store.get(uid,mid)
+            if old['version']!=version:raise ValueError('记忆已被更新，请刷新后重试')
+            if old['status']!='forgotten':raise ValueError('这条记忆没有被移出')
+            if old['valid_until'] is not None and old['valid_until']<=time.time():raise ValueError('这条记忆已到期，请先修订内容与有效期')
+            before={mid:self.snapshot(mid)}
+            self.store.update(uid,mid,status='active',version=version,explicit_restore=True)
+            self.record(uid,'restore',before)
+        return self.store.get(uid,mid)
 
     def patch(self,uid,mid,*,version,content=None,status=None,project=None,valid_until=None,deadline_set=False):
         with self.store.tx() as db:

@@ -13,8 +13,7 @@ if os.name=='nt':
     subprocess.Popen=HiddenPopen
 from self_agent.local_runtime import open_ui,stop,load_local,local_client,wait_service,wait_ready
 root=Path(a.root)
-stop(root);(root/'launch.json').unlink(missing_ok=True)
-client=local_client(load_local(root));wait_service(client);wait_ready(client)
+client=json.loads((root/'local-client.json').read_text('utf-8'));wait_service(client);wait_ready(client)
 ready=threading.Event();captured=[]
 def intercept(uri):captured.append(uri);ready.set();return True
 webbrowser.open=intercept
@@ -27,9 +26,10 @@ with sync_playwright() as p:
     errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
     page.goto(captured[0]);page.wait_for_url(client['url']+'/',timeout=30000)
     page.locator('#app').wait_for(state='visible')
-    page.locator('[data-page="connections"]').click()
-    page.locator('#local-connect-panel').wait_for(state='visible')
-    assert not page.locator('#remote-connect-panel').is_visible()
+    assert page.locator('#scope').input_value()=='*'
+    assert page.locator('#add-memory').is_visible()
+    assert not page.locator('#remote-connect-panel').count()
+    assert not page.locator('#inbox-page').count()
     assert not errors,errors
     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
     page.screenshot(path=str(root/'browser-desktop.png'),full_page=True)

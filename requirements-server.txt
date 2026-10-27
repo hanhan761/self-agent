@@ -2,3 +2,5 @@ fastapi==0.162.0
 uvicorn==0.54.0
 jieba==0.42.1
 cryptography==50.0.2
+APScheduler==3.11.3
+filelock==4.2.4

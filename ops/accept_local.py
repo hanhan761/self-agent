@@ -1,5 +1,5 @@
 """Real isolated local acceptance; reports metadata only, never auth material."""
-import argparse,json,os,statistics,subprocess,sys,time,uuid
+import argparse,json,os,sqlite3,statistics,subprocess,sys,time,uuid
 from datetime import datetime,timezone
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--root',required=True);p.add_argument('--model-cache',required=True);p.add_argument('--xjcode-home',required=True);p.add_argument('--source');a=p.parse_args()
@@ -24,6 +24,12 @@ def wait_for(predicate,timeout=180):
         if value:return value
         time.sleep(0.3)
     raise AssertionError('acceptance_timeout')
+def wait_indexed():
+    def caught_up():
+        with sqlite3.connect(root/'data/memory.sqlite3') as db:
+            return db.execute('SELECT count(*) FROM memories m LEFT JOIN projections p ON p.memory_id=m.id WHERE p.version IS NULL OR p.version!=m.version').fetchone()[0]==0
+    wait_for(caught_up,30)
+
 wait_for(lambda:request('GET','/api/overview')['search']['semantic'],120)
 result['cases']['semantic_ready']=True
 created=request('POST','/v1/memories',body={'content':'自动化验收项目使用 SQLite 保存权威内容，向量索引可重建。','project':'acceptance-project'})
@@ -60,6 +66,7 @@ _,elapsed=hook('codex',{'hook_event_name':'Stop','transcript_path':str(first),'c
 result['timings']['first_stop_seconds']=elapsed
 wait_for(lambda:any('中文' in m['content'] for m in request('GET','/v1/memories',params={'project':'','status':'active'})['items']))
 result['cases']['codex_automatic_extraction']=True
+wait_indexed()
 output,_=hook('codex',{'hook_event_name':'UserPromptSubmit','prompt':'技术说明默认用什么语言？','cwd':str(project)})
 assert '中文' in json.dumps(output,ensure_ascii=False)
 result['cases']['prompt_recall']=True
@@ -67,6 +74,7 @@ second=transcript('claude','我现在改变偏好：今后所有项目的技术�
 _,elapsed=hook('claude',{'hook_event_name':'Stop','transcript_path':str(second),'cwd':str(project)})
 result['timings']['claude_stop_seconds']=elapsed
 wait_for(lambda:any('英文' in m['content'] for m in request('GET','/v1/memories',params={'project':'','status':'active'})['items']))
+wait_indexed()
 output,_=hook('claude',{'hook_event_name':'UserPromptSubmit','prompt':'我喜欢的技术说明语言是什么？','cwd':str(project)})
 assert '英文' in json.dumps(output,ensure_ascii=False)
 active=request('GET','/v1/memories',params={'project':'','status':'active'})['items']
@@ -91,3 +99,5 @@ result['cases']['other_client_settings_preserved']='existing-model' in (home/'.c
 result['state']=status(root/'data')
 (root/'result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),'utf-8')
 print(json.dumps({'passed':True,'cases':result['cases'],'timings':result['timings']},ensure_ascii=False))
+
+stop(root/'data')

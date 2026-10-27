@@ -273,3 +273,32 @@ def test_mem0_projection_uses_scoped_v2_contract(tmp_path):
     assert calls[0]['canonical_id']==item['id']
     assert item['id'] in index.search_ids(uid,'知识','project')
     store.close()
+
+
+def test_management_search_all_scopes_preserves_owner_and_state(service):
+    c,app,alice,bob=service
+    a=add(c,'界面保持简单','project-a');b=add(c,'另一个项目的简单界面','project-b')
+    app.state.store.add(bob,'project-a','别人的简单界面')
+    removed=add(c,'已移出的简单界面','project-a');c.delete('/v1/memories/'+removed['id'])
+    ids={m['id'] for m in c.get('/v1/memories',params={'q':'简单'}).json()['items']}
+    assert ids=={a['id'],b['id']}
+    scoped={m['id'] for m in c.get('/v1/memories',params={'q':'简单','project':'project-a'}).json()['items']}
+    assert scoped=={a['id']}
+    assert c.get('/v1/memories',params={'q':'%' }).json()['items']==[]
+    literal=add(c,'预算保留20%的余量')
+    assert [m['id'] for m in c.get('/v1/memories',params={'q':'20%'}).json()['items']]==[literal['id']]
+    assert c.get('/v1/memories',params={'q':'x'*4001}).status_code==400
+
+
+def test_only_explicit_restore_reactivates_removed_memory(service):
+    c,app,alice,bob=service
+    item=add(c,'默认用简洁的管理界面','project-a');c.delete('/v1/memories/'+item['id'])
+    removed=c.get('/v1/memories/'+item['id']).json()
+    assert c.patch('/v1/memories/'+item['id'],json={'status':'active','version':removed['version']}).status_code==400
+    assert c.post('/v1/memories/'+item['id']+'/restore',json={'version':item['version']}).status_code==400
+    c.headers['Authorization']='Bearer '+app.state.auth.issue_key(bob,'test')
+    assert c.post('/v1/memories/'+item['id']+'/restore',json={'version':removed['version']}).status_code==404
+    c.headers['Authorization']='Bearer '+app.state.auth.issue_key(alice,'test')
+    restored=c.post('/v1/memories/'+item['id']+'/restore',json={'version':removed['version']})
+    assert restored.status_code==200 and restored.json()['status']=='active'
+    assert restored.json()['version']>removed['version']

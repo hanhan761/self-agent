@@ -1,0 +1,367 @@
+{
+  "environment": {
+    "platform": "Windows",
+    "machine": "AMD64",
+    "logical_cpus": 20,
+    "python": "3.13.17"
+  },
+  "generative_requests": 0,
+  "components": {
+    "mcp-memory-service": "12.4.0",
+    "APScheduler": "3.11.3",
+    "FlashRank": "0.2.10",
+    "reranker": "BGE base int8 CPU"
+  },
+  "canonical": [
+    {
+      "records": 10000,
+      "keyword_unique": {
+        "samples": 20,
+        "median_ms": 0.281,
+        "p95_ms": 0.36,
+        "max_ms": 0.39
+      },
+      "keyword_broad": {
+        "samples": 20,
+        "median_ms": 12.613,
+        "p95_ms": 13.24,
+        "max_ms": 13.382
+      },
+      "candidate_lookup": {
+        "samples": 20,
+        "median_ms": 10.009,
+        "p95_ms": 10.923,
+        "max_ms": 11.113
+      },
+      "listing_100": {
+        "samples": 20,
+        "median_ms": 1.195,
+        "p95_ms": 1.284,
+        "max_ms": 1.303
+      },
+      "candidate_python_rows": 25
+    },
+    {
+      "records": 100000,
+      "keyword_unique": {
+        "samples": 20,
+        "median_ms": 0.389,
+        "p95_ms": 0.595,
+        "max_ms": 0.761
+      },
+      "keyword_broad": {
+        "samples": 20,
+        "median_ms": 84.957,
+        "p95_ms": 86.451,
+        "max_ms": 87.023
+      },
+      "candidate_lookup": {
+        "samples": 20,
+        "median_ms": 105.356,
+        "p95_ms": 120.538,
+        "max_ms": 122.232
+      },
+      "listing_100": {
+        "samples": 20,
+        "median_ms": 1.208,
+        "p95_ms": 1.629,
+        "max_ms": 1.676
+      },
+      "candidate_python_rows": 25
+    }
+  ],
+  "vectors": {
+    "records": 10007,
+    "build_seconds": 83.67,
+    "hybrid_recall": {
+      "samples": 20,
+      "median_ms": 380.944,
+      "p95_ms": 478.717,
+      "max_ms": 593.299
+    },
+    "relevance_cases": [
+      {
+        "kind": "positive",
+        "query": "知识库文件应该存在哪个磁盘？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "Where should I keep the knowledge database files?",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "解释技术问题用什么语言？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "Please explain technical details in Chinese",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "管理页面应该是什么风格？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "How simple should the memory dashboard be?",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "我可以删除不想要的记忆吗？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "Can I edit stored knowledge manually?",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "文件默认保存在 D 盘吗？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "管理界面需要哪些内容？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "能由我手工移走某条长期知识吗？",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "positive",
+        "query": "Which language should your technical explanations use?",
+        "passed": true,
+        "returned": 1,
+        "noise_excluded": true
+      },
+      {
+        "kind": "negative",
+        "query": "北京明天天气怎样",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "晚饭红烧肉怎么做",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "跑鞋应该选哪个品牌",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "今天欧冠比分如何",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "纽约机票价格",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "怎样给盆栽浇水",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "推荐周末徒步路线",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "How do I bake bread?",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "What is the capital of Peru?",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "怎么给小猫喂食",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "量子纠缠是什么",
+        "passed": true,
+        "returned": 0
+      },
+      {
+        "kind": "negative",
+        "query": "如何练习游泳换气",
+        "passed": true,
+        "returned": 0
+      }
+    ],
+    "positive_passed": 12,
+    "positive_total": 12,
+    "negative_passed": 12,
+    "negative_total": 12,
+    "owner_project_isolation": true,
+    "removed_excluded_from_recall": true,
+    "removed_available_for_dedup": true
+  },
+  "projection_loss_rebuilt": true,
+  "passed": true,
+  "automated_tests": {
+    "passed": 137,
+    "checks": [
+      "service",
+      "owner/project privacy",
+      "lifecycle",
+      "export/restore",
+      "capacity/backpressure",
+      "scheduler isolation",
+      "extraction checkpoints",
+      "reranker canonical recheck"
+    ]
+  },
+  "native": {
+    "passed": true,
+    "provider": "native XJTU, pinned selected account/model",
+    "native_calls": 7,
+    "offline_real_vectors_and_reranker": true,
+    "automatic_admission": true,
+    "equivalent_merged": true,
+    "explicit_correction_replaced": true,
+    "forgotten_paraphrase_not_resurrected": true,
+    "removed_and_superseded_excluded_from_recall": true,
+    "isolated_synthetic_profile": true
+  },
+  "browser": {
+    "passed": true,
+    "all_project_default": true,
+    "no_mandatory_review_page": true,
+    "add_edit_remove_explicit_restore": true,
+    "cross_project_management_search": true,
+    "automatic_list_refresh": true,
+    "source_and_history_accessible": true,
+    "backup_controls_preserved": true,
+    "mobile_no_overflow": true,
+    "page_errors": [],
+    "isolated_synthetic_data": true
+  },
+  "limitations": [
+    "Synthetic isolated corpus: 100,000 canonical records and 10,007 vector records, not a million-vector stress test.",
+    "24 relevance cases include calibration cases and 10 subsequently added queries; not an independent benchmark or statistical accuracy guarantee.",
+    "No fresh Windows VM or new campus SSO login in this update.",
+    "Trusted host hooks and installed runtime acceptance are recorded separately."
+  ],
+  "hooks": {
+    "startup": "bounded canonical confirmed defaults; no fabricated semantic query",
+    "prompt": "upstream hybrid retrieval and FlashRank+BGE relevance gate",
+    "capture": "fsync on input events and Stop, shared idempotent cursor"
+  },
+  "frozen_installation": {
+    "release_id": "0a578758354b",
+    "verified_files": 5559,
+    "installer_sha256": "4cf3b36f8dd7458f5117632b2ec74e2f3ba4fee94e2a413b2984aa7725d5f1f1",
+    "archive_sha256": "f89b3e2ef958c6ff6166746d4d76737438fa13a3e8b8553ff6adb926f1a90fa6",
+    "cases": {
+      "semantic_ready": true,
+      "owner_and_project_isolation": true,
+      "codex_automatic_extraction": true,
+      "prompt_recall": true,
+      "cross_client_correction": true,
+      "session_start_recall": true,
+      "capture_replay_idempotent": true,
+      "restore": true,
+      "other_client_settings_preserved": true
+    },
+    "timings": {
+      "first_stop_seconds": 0.3869974999979604,
+      "claude_stop_seconds": 0.372698399994988,
+      "warm_search_p95_seconds": 0.08501609999802895
+    },
+    "browser": {
+      "passed": true,
+      "automatic_local_login": true,
+      "no_remote_pairing_ui": true,
+      "desktop_and_mobile_no_overflow": true,
+      "page_errors": []
+    },
+    "mcp": {
+      "transport": "actual Windows pythonw stdio",
+      "tools": 5,
+      "readonly_search_calls": true,
+      "automatic_project_scope": true
+    }
+  },
+  "current_device": {
+    "verified_release": "0a578758354b",
+    "all_5559_checksums_verified": true,
+    "canonical_backup_before_update": true,
+    "unchanged_client_settings_files": 8,
+    "readonly_mcp_connection": true,
+    "automatic_project_scope": true,
+    "readonly_browser": {
+      "passed": true,
+      "automatic_local_login": true,
+      "no_remote_pairing_ui": true,
+      "desktop_and_mobile_no_overflow": true,
+      "page_errors": []
+    },
+    "host_hooks": [
+      {
+        "event": "sessionStart",
+        "enabled": true,
+        "trust": "trusted"
+      },
+      {
+        "event": "userPromptSubmit",
+        "enabled": true,
+        "trust": "trusted"
+      },
+      {
+        "event": "stop",
+        "enabled": true,
+        "trust": "trusted"
+      }
+    ],
+    "codex_restart_required_for_this_in_place_update": false
+  }
+}

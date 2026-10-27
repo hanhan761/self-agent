@@ -22,7 +22,7 @@ internal static class LocalSetup {
         form.Shown+=async (sender,e)=>{
             try {
                 await Task.Run(()=>{
-                    string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"self-agent","apps","local-0.2.0-RELEASE_ID");
+                    string root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"self-agent","apps","local-BUNDLE_VERSION-RELEASE_ID");
                     if(!File.Exists(Path.Combine(root,"manifest.json")))Extract(root);
                     var start=new ProcessStartInfo(Path.Combine(root,"pythonw.exe"),"\""+Path.Combine(root,"source","scripts","setup_local.py")+"\"") {
                         UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,

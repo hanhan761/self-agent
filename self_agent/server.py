@@ -20,6 +20,7 @@ from .engine import Engine
 from .agent_connect import instruction,guide
 import hashlib
 from .store import Store
+from .capacity import Capacity,Backpressure
 
 
 class Login(BaseModel):
@@ -87,7 +88,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
         yield
         engine.close()
         store.close()
-    app=FastAPI(title='Self Agent API',version='0.2.0',lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None)
+    app=FastAPI(title='Self Agent API',version='0.2.1',lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None)
     app.state.store,app.state.auth,app.state.engine=store,auth,engine
     attempts=defaultdict(deque)
     attempts_lock=threading.Lock()
@@ -126,13 +127,19 @@ def create_app(config=None,*,start_worker=True,provider=None):
         if not user:raise HTTPException(401,'请先登录')
         return user
 
-    def writable():
-        used=sum(p.stat().st_size for p in config.data_dir.rglob('*') if p.is_file())
-        if used>=config.max_data_bytes:raise HTTPException(507,'数据预算已达上限，请先导出并调整容量')
+    @app.exception_handler(Backpressure)
+    async def capacity_pause(request,exc):
+        labels={'disk_low':'磁盘余量不足，已暂停新增；原始会话仍可稍后补采','data_limit':'知识库存储预算已达上限，请先导出并调整容量',
+                'capture_queue_full':'采集队列已满，稍后自动补采','processing_queue_full':'正在整理的资料较多，请稍后重试','capture_busy':'正在保存其他资料，请稍后重试','queue_unavailable':'资料队列暂时不可用，请稍后重试'}
+        return JSONResponse({'detail':labels.get(exc.reason,'资源保护已暂停新增')},status_code=507 if exc.reason in ('disk_low','data_limit') else 429,headers={'Retry-After':'5'})
+
+    def writable(incoming=65536,jobs=0):
+        Capacity(config).check(incoming,jobs=jobs)
+
 
     @app.get('/healthz')
     def health(request:Request):
-        result={'status':'ok','version':'0.2.0',**({'local_instance_id':config.local_instance_id} if config.local else {})}
+        result={'status':'ok','version':'0.2.1',**({'local_instance_id':config.local_instance_id} if config.local else {})}
         challenge=request.query_params.get('challenge','')
         if config.local and 1<=len(challenge)<=64:
             import hmac
@@ -262,15 +269,25 @@ def create_app(config=None,*,start_worker=True,provider=None):
         store.lifecycle.expire(user['id'])
         result=store.overview(user['id'])
         with store.tx() as db:result['cleanup']=[dict(r) for r in db.execute('SELECT id,state,processed,error,created FROM cleanup_jobs WHERE user_id=? ORDER BY created DESC LIMIT 5',(user['id'],))]
+        if config.local and user['id']==config.local_user_id:
+            result['capacity']=Capacity(config).status()
+            result['processing']={'scheduler':'APScheduler 3.11.3','waiting_for_index':not getattr(engine.index,'ready_for_reconcile',True),'last_error':engine.worker_error}
         result['local']=config.local
         result['provider']={'configured':engine.provider.configured,'model':config.xjtu_model,'name':'交晓智原生 API'}
-        result['search']={'semantic':engine.index.memory is not None and not engine.index.error,'state':engine.index.error,'keyword':True}
+        result['search']={'semantic':engine.index.memory is not None and not engine.index.error,'state':engine.index.error,'keyword':True,
+                          'reranking':getattr(engine.index,'reranker',None) is not None,'rerank_state':getattr(engine.index,'rerank_error','not_applicable')}
         return result
 
     @app.get('/v1/memories')
-    def listing(project:str|None=None,status:str='active',offset:int=0,user=Depends(current)):
+    def listing(project:str|None=None,status:str='active',offset:int=0,q:str='',user=Depends(current)):
+        if len(q)>4000:raise ValueError('搜索内容过长')
         store.lifecycle.expire(user['id'])
-        return {'items':store.listing(user['id'],project=project,status=status,offset=offset)}
+        return {'items':store.listing(user['id'],project=project,status=status,offset=offset,query=q,details=False)}
+
+    @app.get('/v1/context')
+    def context(project:str='',limit:int=8,user=Depends(current)):
+        if not 1<=limit<=30:raise ValueError('无效上下文数量')
+        return {'items':engine.context(user['id'],project,limit)}
 
     @app.get('/v1/search')
     def search(q:str,project:str='',limit:int=8,user=Depends(current)):
@@ -282,7 +299,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
 
     @app.post('/v1/memories',status_code=201)
     def remember(body:MemoryInput,user=Depends(current)):
-        writable()
+        writable(len(body.content.encode())*4+65536)
         sid,_=store.source(user['id'],body.project,body.title or '手动记录',body.content)
         with store.tx():
             item=store.add(user['id'],body.project,body.content,title=body.title,kind=body.kind,source_id=sid)
@@ -294,7 +311,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
 
     @app.patch('/v1/memories/{mid}')
     def update(mid:str,body:MemoryPatch,user=Depends(current)):
-        writable()
+        writable(len((body.content or '').encode())*4+32768)
         values=body.model_dump(exclude_unset=True)
         values['deadline_set']='valid_until' in values
         return store.lifecycle.patch(user['id'],mid,**values)
@@ -302,9 +319,13 @@ def create_app(config=None,*,start_worker=True,provider=None):
     @app.delete('/v1/memories/{mid}')
     def forget(mid:str,user=Depends(current)):return store.update(user['id'],mid,status='forgotten')
 
+    @app.post('/v1/memories/{mid}/restore')
+    def restore_memory(mid:str,body:MemoryPatch,user=Depends(current)):
+        writable()
+        return store.lifecycle.restore(user['id'],mid,body.version)
+
     @app.post('/v1/sources',status_code=202)
     def ingest(body:Ingest,user=Depends(current)):
-        writable()
         from .messages import batches
         messages=body.messages
         if messages is None and body.content:
@@ -319,6 +340,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
         else:
             if not body.content.strip():raise ValueError('资料不能为空')
             chunks=[body.content[start:start+12000] for start in range(0,len(body.content),12000)]
+        writable(sum(len(chunk.encode()) for chunk in chunks)*3+65536,jobs=len(chunks))
         ids=[]
         with store.tx():
             for number,content in enumerate(chunks):
@@ -355,6 +377,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
             row=db.execute('SELECT state FROM jobs WHERE id=? AND user_id=?',(jid,user['id'])).fetchone()
             if not row:raise KeyError(jid)
             if row['state'] not in ('failed','uncertain'):raise ValueError('只能重试失败或结果不明的任务')
+            writable(32768,jobs=1)
             db.execute("UPDATE jobs SET state='pending',next_at=0,error='' WHERE id=?",(jid,))
         return {'ok':True}
 
@@ -374,7 +397,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
 
     @app.post('/v1/restore')
     def restore(body:dict,user=Depends(current)):
-        writable()
+        writable(len(json.dumps(body,ensure_ascii=False).encode())*4+65536)
         return restore_user(store,user['id'],body)
 
     @app.get('/api/keys')
@@ -397,5 +420,5 @@ def create_app(config=None,*,start_worker=True,provider=None):
     web=Path(__file__).parent/'web'
     app.mount('/assets',StaticFiles(directory=web),name='assets')
     @app.get('/')
-    def home():return FileResponse(web/'index.html')
+    def home():return FileResponse(web/('local.html' if config.local else 'index.html'))
     return app

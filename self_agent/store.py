@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS memories(id TEXT PRIMARY KEY, user_id TEXT NOT NULL R
 CREATE TABLE IF NOT EXISTS versions(memory_id TEXT NOT NULL REFERENCES memories(id), version INTEGER NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL, changed REAL NOT NULL, PRIMARY KEY(memory_id,version));
 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), source_id TEXT NOT NULL REFERENCES sources(id), state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_at REAL NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '', created REAL NOT NULL, UNIQUE(source_id));
 CREATE TABLE IF NOT EXISTS projections(memory_id TEXT PRIMARY KEY REFERENCES memories(id), version INTEGER NOT NULL, external_id TEXT, error TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS job_extractions(job_id TEXT PRIMARY KEY REFERENCES jobs(id),items TEXT NOT NULL,next_item INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, event TEXT NOT NULL, entity_id TEXT NOT NULL, at REAL NOT NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(memory_id UNINDEXED, words, tokenize='unicode61');
 CREATE TABLE IF NOT EXISTS external_identities(provider TEXT NOT NULL, identity_hash TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), PRIMARY KEY(provider,identity_hash));
@@ -24,12 +25,22 @@ CREATE TABLE IF NOT EXISTS session_identities(session_hash TEXT PRIMARY KEY, pro
 CREATE TABLE IF NOT EXISTS api_key_identities(key_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS pairing_codes(hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, expires REAL NOT NULL, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS memory_owner ON memories(user_id,project,status);
+CREATE INDEX IF NOT EXISTS memory_listing ON memories(user_id,status,updated DESC);
+CREATE INDEX IF NOT EXISTS memory_project_listing ON memories(user_id,project,status,updated DESC);
+CREATE INDEX IF NOT EXISTS memory_candidates ON memories(user_id,project,kind,updated DESC);
+CREATE INDEX IF NOT EXISTS jobs_pending ON jobs(state,next_at,created);
 '''
 
 
 def words(text):
     import jieba
     return ' '.join(jieba.cut_for_search(text.lower()))
+
+
+# Function words must not make unrelated memories look like keyword matches.
+STOP_WORDS=set('的 了 是 我 你 他 她 它 我们 你们 这个 那个 这些 那些 请 一下 什么 怎么 如何 可以 应该 需要 一个 进行 以及 或者 和 与 在 对 用 有 吗 呢 吧 现在 the a an is are to of and or for on in it this that'.split())
+def search_terms(text):
+    return list(dict.fromkeys(t for t in re.findall(r'[\w]+',words(text)) if t not in STOP_WORDS))[:32]
 
 
 def fingerprint(content):
@@ -111,7 +122,18 @@ class Store:
             result['history'] = [dict(x) for x in db.execute('SELECT version,content,status,changed FROM versions WHERE memory_id=? ORDER BY version DESC', (mid,))]
             return self.lifecycle.describe(result)
 
-    def update(self, uid, mid, *, content=None, status=None, version=None):
+    def brief(self,uid,mid):
+        """Bounded search/list records; full evidence and history stay behind get()."""
+        with self.tx() as db:
+            row=db.execute('SELECT m.*,s.title source_title,s.kind source_kind,x.observed_at,x.valid_until,x.topic,x.reason FROM memories m LEFT JOIN sources s ON s.id=m.source_id LEFT JOIN memory_metadata x ON x.memory_id=m.id WHERE m.id=? AND m.user_id=?',(mid,uid)).fetchone()
+            if not row:raise KeyError(mid)
+            result=dict(row);result['memory_id']=mid;result['observed_at']=result['observed_at'] or result['created']
+            result['topic']=result['topic'] or '';result['reason']=result['reason'] or '';result['scope']='project' if result['project'] else 'personal'
+            result['effective_state']='expired' if result['reason']=='expired' or result['valid_until'] is not None and result['valid_until']<=time.time() else result['status']
+            result['relations']=[dict(r) for r in db.execute("SELECT source_id,target_id,relation FROM memory_relations WHERE user_id=? AND source_id=? AND relation='overrides'",(uid,mid))]
+            return result
+
+    def update(self, uid, mid, *, content=None, status=None, version=None, explicit_restore=False):
         with self.tx() as db:
             old = self.get(uid, mid)
             if version is not None and old['version'] != version:
@@ -120,7 +142,7 @@ class Store:
             status = old['status'] if status is None else status
             if not content or len(content)>12000 or status not in ('active','candidate','superseded','forgotten'):
                 raise ValueError('无效内容或状态')
-            if old['status']=='forgotten' and status!='forgotten':
+            if old['status']=='forgotten' and status!='forgotten' and not explicit_restore:
                 raise ValueError('已忘记的记忆不能自动恢复')
             v,now=old['version']+1,time.time()
             title=content[:60] if old['title']==old['content'][:60] else old['title']
@@ -132,20 +154,22 @@ class Store:
             db.execute('INSERT INTO audit(user_id,event,entity_id,at) VALUES(?,?,?,?)',(uid,status,mid,now))
         return self.get(uid,mid)
 
-    def listing(self, uid, *, project=None, status='active', limit=100, offset=0):
+    def listing(self, uid, *, project=None, status='active', limit=100, offset=0, query='', details=True):
         sql,params='SELECT m.*,s.title source_title FROM memories m LEFT JOIN sources s ON s.id=m.source_id WHERE m.user_id=? AND m.status=?',[uid,status]
         if project is not None:
             sql+=' AND m.project IN (?,?)';params+=['',project]
+        if query.strip():
+            sql+=" AND instr(lower(m.content||' '||m.title||' '||m.project),lower(?))>0";params.append(query.strip())
         sql+=' ORDER BY m.updated DESC LIMIT ? OFFSET ?';params += [min(limit,200),max(offset,0)]
         with self.tx() as db:
-            return [self.get(uid,x['id']) for x in db.execute(sql,params)]
+            return [(self.get if details else self.brief)(uid,x['id']) for x in db.execute(sql,params)]
 
     def search(self, uid, query, project='', limit=8):
-        terms=list(dict.fromkeys(re.findall(r'[\w]+',words(query))))[:32]
+        terms=search_terms(query)
         if not terms:return []
         expression=' OR '.join('"'+t+'"' for t in terms)
         with self.tx() as db:
-            rows=db.execute('SELECT m.*,s.title source_title,bm25(memory_fts) rank FROM memory_fts f JOIN memories m ON m.id=f.memory_id LEFT JOIN sources s ON s.id=m.source_id WHERE memory_fts MATCH ? AND m.user_id=? AND m.project IN (?,?) AND m.status=? ORDER BY rank LIMIT ?', (expression,uid,'',project,'active',min(limit,50)))
+            rows=db.execute('SELECT m.*,s.title source_title,f.rank rank FROM memory_fts f CROSS JOIN memories m ON m.id=f.memory_id LEFT JOIN sources s ON s.id=m.source_id WHERE memory_fts MATCH ? AND m.user_id=? AND m.project IN (?,?) AND m.status=? ORDER BY rank LIMIT ?', (expression,uid,'',project,'active',min(limit,50)))
             return [dict(x) for x in rows]
 
     def enqueue(self, uid, source_id):
@@ -163,4 +187,5 @@ class Store:
             projects=[r[0] for r in db.execute('SELECT DISTINCT project FROM memories WHERE user_id=? AND project!=? ORDER BY project',(uid,''))]
             jobs=[dict(r) for r in db.execute('SELECT id,state,attempts,error,created FROM jobs WHERE user_id=? ORDER BY created DESC LIMIT 30',(uid,))]
             sources=db.execute('SELECT count(*) FROM sources WHERE user_id=?',(uid,)).fetchone()[0]
-        return {'counts':counts,'projects':projects,'jobs':jobs,'sources':sources}
+            captured=db.execute("SELECT max(created) FROM sources WHERE user_id=? AND kind='conversation'",(uid,)).fetchone()[0]
+        return {'counts':counts,'projects':projects,'jobs':jobs,'sources':sources,'last_captured_at':captured}

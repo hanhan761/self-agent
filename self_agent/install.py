@@ -38,7 +38,18 @@ def owned_hook(item, client, runner):
                     return True
             except ValueError:
                 pass
+        # Codex's Windows shell is PowerShell: quoted executable paths require &.
+        match = re.fullmatch(r"(?:\$env:PATHEXT = '\.COM;\.EXE;\.BAT;\.CMD'; )?& '(?:[^']|'')*' '((?:[^']|'')*)' " + re.escape(client), hook.get('command', ''))
+        if match and owned_runner(match[1].replace("''", "'"), runner):
+            return True
     return False
+
+
+def hook_command(client,python,runner):
+    if os.name=='nt' and client=='codex':
+        quote=lambda value:"'"+str(value).replace("'","''")+"'"
+        return "$env:PATHEXT = '.COM;.EXE;.BAT;.CMD'; & "+quote(python)+' '+quote(runner)+' '+client
+    return json.dumps(str(python))+' '+json.dumps(str(runner))+' '+client
 
 
 def install_client(client,home=None,repo=None,python=None):
@@ -51,7 +62,7 @@ def install_client(client,home=None,repo=None,python=None):
         if candidate.exists():python=str(candidate)
     runner=str(repo/'scripts'/'hook_runner.py')
     mcp_runner=str(repo/'scripts'/'mcp_runner.py')
-    command=json.dumps(python)+' '+json.dumps(runner)+' '+client
+    command=hook_command(client,python,runner)
     backups=private_root()/'config-backups'
     if client=='claude':
         file=home/'.claude.json'

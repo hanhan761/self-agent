@@ -1,8 +1,9 @@
 """Build a bounded offline Windows installer from an already prepared private runtime."""
-import argparse,hashlib,json,os,subprocess,zipfile
+import argparse,hashlib,json,os,subprocess,zipfile,tomllib
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--runtime',required=True);p.add_argument('--output',default='dist');a=p.parse_args()
 root=Path(__file__).resolve().parents[1];runtime=Path(a.runtime).resolve();out=Path(a.output).resolve();out.mkdir(parents=True,exist_ok=True)
+version=tomllib.loads((root/'pyproject.toml').read_text('utf-8'))['project']['version']
 allowed={'Lib','source','models','bin','licenses'}
 files=[]
 for f in sorted(runtime.rglob('*')):
@@ -14,18 +15,18 @@ for f in sorted(runtime.rglob('*')):
     if f.suffix in ('.sqlite3','.db','.dpapi','.token') or f.suffix=='.pem' and rel.as_posix()!='Lib/site-packages/certifi/cacert.pem':
         raise ValueError('private_material_in_release')
     sha=hashlib.sha256(f.read_bytes()).hexdigest();files.append({'path':rel.as_posix(),'bytes':f.stat().st_size,'sha256':sha})
-manifest={'version':'0.2.0','python':'3.13.17','backend':'mcp-memory-service 12.4.0','files':files}
+manifest={'version':version,'python':'3.13.17','backend':'mcp-memory-service 12.4.0','files':files}
 release_id=hashlib.sha256(json.dumps(manifest,sort_keys=True).encode()).hexdigest()[:12]
 manifest['release_id']=release_id
 (runtime/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),'utf-8')
-archive=out/('self-agent-local-0.2.0-'+release_id+'-windows-x64.zip')
+archive=out/('self-agent-local-'+version+'-'+release_id+'-windows-x64.zip')
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
     for entry in files:z.write(runtime/entry['path'],entry['path'])
     z.write(runtime/'manifest.json','manifest.json')
 sha=hashlib.sha256(archive.read_bytes()).hexdigest()
-source=(root/'ops/LocalSetup.cs').read_text('utf-8').replace('RELEASE_ID',release_id).replace('BUNDLE_SHA256',sha)
+source=(root/'ops/LocalSetup.cs').read_text('utf-8').replace('RELEASE_ID',release_id).replace('BUNDLE_SHA256',sha).replace('BUNDLE_VERSION',version)
 cs=out/'LocalSetup.generated.cs';cs.write_text(source,'utf-8')
-installer=out/('Self-Agent-Local-0.2.0-'+release_id+'-Setup.exe')
+installer=out/('Self-Agent-Local-'+version+'-'+release_id+'-Setup.exe')
 csc=Path(os.environ.get('WINDIR','C:/Windows'))/'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 command=[str(csc),'/nologo','/target:winexe','/platform:x64','/optimize+',
     '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll',

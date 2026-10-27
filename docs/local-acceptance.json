@@ -1,14 +1,14 @@
 {
-  "date": "2026-10-27",
-  "release_id": "ae1cf227eca9",
+  "date": "2026-10-28",
+  "release_id": "0a578758354b",
   "automated_tests": {
-    "passed": 104,
+    "passed": 137,
     "command": "python -m pytest -q"
   },
   "artifact": {
-    "file_checksums_verified": 5534,
-    "installer_sha256": "efa573aab1bc8c9c85b56381cdfe8e2fbec2af7b65a7bf931bc880c0fec724bf",
-    "archive_sha256": "6b302e79d5fcef399f6c9407542b29ebd2fc688dd71c6229cad0aa11e0896db1"
+    "file_checksums_verified": 5559,
+    "installer_sha256": "4cf3b36f8dd7458f5117632b2ec74e2f3ba4fee94e2a413b2984aa7725d5f1f1",
+    "archive_sha256": "f89b3e2ef958c6ff6166746d4d76737438fa13a3e8b8553ff6adb926f1a90fa6"
   },
   "actual_model": {
     "provider": "native XJTU",
@@ -22,16 +22,20 @@
       "Claude Code"
     ],
     "automatic_extraction": true,
-    "prompt_recall": true,
+    "prompt_recall": "hybrid retrieval + FlashRank/BGE relevance gate",
     "session_start_recall": true,
     "cross_client_correction": true,
     "replay_idempotent": true,
     "stop_20_sample_p95_seconds": 0.42113879999669734,
-    "stop_max_seconds": 0.44953779999923427
+    "stop_max_seconds": 0.44953779999923427,
+    "session_start": "bounded confirmed canonical defaults; queryless bootstrap",
+    "stop_current_frozen_seconds": 0.3869974999979604,
+    "claude_stop_current_frozen_seconds": 0.372698399994988
   },
   "search": {
-    "warm_15_sample_p95_seconds": 0.0734295000002021,
-    "scope": "small synthetic corpus; not a general accuracy guarantee"
+    "small_frozen_corpus_warm_15_sample_max_seconds": 0.08501609999802895,
+    "scale_report": "scaling-acceptance.json",
+    "scope": "isolated synthetic fixtures; not a general accuracy guarantee"
   },
   "mcp": {
     "transport": "actual Windows pythonw stdio",
@@ -64,8 +68,9 @@
   },
   "host_activation": {
     "current_device_configured": true,
-    "codex_hook_review": "pending human review; no trust state modified",
-    "reload_required": true
+    "codex_hook_review": "all three definitions enabled/trusted, verified through native hooks/list; no trust decisions modified",
+    "reload_required_for_this_in_place_update": false,
+    "new_installation_requires_host_review_and_new_session": true
   },
   "server_deployment_changed": false,
   "current_device_migration": {
@@ -73,5 +78,14 @@
     "restored_memories": 0,
     "restored_sources": 2,
     "encrypted_private_backup": true
+  },
+  "previous_release": "ae1cf227eca9",
+  "scale_hardening": {
+    "canonical_records": 100000,
+    "vector_records": 10007,
+    "relevance_positive_passed": 12,
+    "relevance_negative_passed": 12,
+    "native_lifecycle_calls": 7,
+    "details": "scaling-acceptance.json"
   }
 }

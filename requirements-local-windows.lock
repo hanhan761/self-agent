@@ -1,5 +1,6 @@
 # Verified Windows x64 local runtime; Python 3.13.17.
 APScheduler==3.11.3
+FlashRank==0.2.10
 Authlib==1.9.1
 PyJWT==2.15.1
 PyYAML==6.0.3

@@ -57,3 +57,39 @@ Goal: Windows local knowledge, Codex + Claude Code automatic recall/capture, nat
 5. Migrate current device after isolated acceptance; document and push GitHub — complete; local-v0.2.0 published, installer checksum verified by GitHub.
 
 Preserve server deployment and unrelated client configuration. Human Codex hook trust/reload remains a host-controlled step. No personal history bulk import.
+
+## D drive migration — 2026-10-27
+1. Measure storage and preserve connection settings — complete.
+2. Stop local service; copy private installation and release artifacts to D with verification — complete.
+3. Activate compatible directory junctions; verify database, runtime, MCP and unchanged settings — complete.
+4. Remove verified former C copies and measure reclaimed space — complete; ~14.4 GiB freed; 15.5 MiB of locked legacy binaries scheduled for owned RunOnce cleanup.
+
+## Live Hook verification and Windows path fix
+1. Check configuration, trust and actual-session capture evidence — complete; enabled/trusted configuration exists, automatic capture was absent.
+2. Reproduce extended-path rejection and add privacy/deduplication regressions — complete.
+3. Fix source and hot-update installed D runtime without changing hook definitions — complete; 108 tests, actual isolated pythonw hook, installed checksums passed.
+4. Observe current-thread automatic Stop after final reply — observer active; requires event after this turn ends.
+
+## PowerShell Hook exit-1 fix
+1. Reproduce actual shell failure rather than direct-process success — complete.
+2. Fix invocation, per-hook executable detection and ownership recognition — complete.
+3. Verify real PowerShell capture/UTF-8 recall/deduplication; run complete tests — complete, 109 passed.
+4. Update installed D runtime/owned hook commands and preserve unrelated settings — complete.
+5. Host trust review and actual automatic-event verification — awaiting user /hooks review; native status is modified for all three definitions.
+
+## Live Hook acceptance result
+Host trust review is resolved (all three enabled/trusted). Genuine current-thread automatic Stop capture and native extraction are verified by the observer: one source, one done job, one candidate memory. Active production recall is not claimed for this candidate; isolated UTF-8 recall checks passed separately. Windows login autostart is configured and points through the compatibility junction to D storage.
+
+## Automatic admission, simpler management and earlier capture
+1. Diagnose actual counts/scopes and extraction/trigger rules — complete: 1 active + 1 candidate, five sources, three completed extraction jobs; capture occurs only on Stop and default UI hides project memories.
+2. Default direct user facts/requirements/confirmed decisions to automatic admission, retaining evidence and forgotten/conflict safeguards — complete; actual native isolation produced 5 active records with zero approval requests.
+3. Capture on message submission as well as Stop without changing trusted Hook definitions — complete; shared durable cursor, bounded confirmation context and no assistant-only generation.
+4. Simplify local management to a live all-project memory list, search, manual add/edit/remove, secondary history/source/backup — complete; isolated real-browser CRUD/rejoin and live readonly desktop/mobile checks passed.
+5. Test privacy/lifecycle/native extraction/browser; update D installation and bounded existing-source reprocessing — complete; 115 tests, 5537 installed checksums, 3 deliberate completed-source reprocesses and one incremental current-session catch-up, 7 real active memories and successful actual MCP recall.
+
+## Scale hardening and GitHub sync — reuse-first revision
+1. Audit pinned upstream MCP Memory Service capabilities and mature embedded task runners before extending custom logic — complete; actual pinned source APIs verified and integrated.
+2. Integrate upstream bounded retrieval/hybrid/dedup primitives while keeping canonical ownership/evidence/lifecycle boundaries — complete.
+3. Reuse mature APScheduler execution over authoritative SQLite tasks; add application-specific capacity and paid-request guards — complete.
+4. Run isolated scale, relevance, privacy/lifecycle/restore and real model/browser acceptance — complete; 137 tests, 100k canonical / 10,007 vectors, 12 positive + 12 negative queries, 7-call native lifecycle and frozen/browser/MCP acceptance.
+5. Update D installation without changing trusted commands, package a verified offline update, commit/push and publish GitHub artifacts — live update and all 5,559 checksums complete; 3 trusted hooks verified; GitHub publication in progress.

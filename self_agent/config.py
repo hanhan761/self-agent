@@ -36,6 +36,14 @@ class Config:
     xjtu_url: str = 'http://ai.xjtu.edu.cn:30040/'
     allow_campus_http: bool = False
     max_data_bytes: int = 2 * 1024**3
+    min_free_bytes: int = 512 * 1024**2
+    max_capture_batches: int = 1000
+    max_capture_bytes: int = 64 * 1024**2
+    max_pending_jobs: int = 1000
+    min_recall_similarity: float = 0.55
+    min_lexical_coverage: float = 0.25
+    min_rerank_score: float = 0.2
+    projection_batch_size: int = 128
 
     @classmethod
     def load(cls):

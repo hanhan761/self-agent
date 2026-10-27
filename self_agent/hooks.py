@@ -28,10 +28,21 @@ def project_id(cwd=None):
     return 'local:'+hashlib.sha256(str(cwd).encode()).hexdigest()[:16]
 
 
+def canonical_path(filename):
+    """Use one identity for normal and extended Windows paths after resolving links."""
+    path=Path(filename).resolve()
+    if os.name=='nt':
+        text=str(path)
+        if text.startswith('\\\\?\\UNC\\'):text='\\\\'+text[8:]
+        elif text.startswith('\\\\?\\'):text=text[4:]
+        path=Path(text)
+    return path
+
+
 def normalized_messages(filename,client):
     path=Path(filename).resolve()
-    allowed=(Path.home()/('.claude' if client=='claude' else '.codex')).resolve()
-    if not path.is_relative_to(allowed) or not path.is_file():raise ValueError('untrusted_transcript_path')
+    allowed=canonical_path(Path.home()/('.claude' if client=='claude' else '.codex'))
+    if not canonical_path(path).is_relative_to(allowed) or not path.is_file():raise ValueError('untrusted_transcript_path')
     if path.stat().st_size>100*1024**2:raise ValueError('transcript_too_large')
     rows=[]
     with path.open('r',encoding='utf-8') as stream:
@@ -65,8 +76,18 @@ def handle(client,event):
     name=event.get('hook_event_name','')
     project=project_id(event.get('cwd'))
     if name in ('SessionStart','UserPromptSubmit'):
-        prompt=event.get('prompt') or '当前项目长期偏好 已确认决策 项目背景'
-        items=request('GET','/v1/search',params={'q':prompt[:2000],'project':project,'limit':8},timeout=3.3)['items']
+        # Persist current input before recall; failed retrieval must not lose capture.
+        if event.get('transcript_path'):
+            from .client import client_config
+            config=client_config()
+            if config.get('local'):
+                from .spool import capture
+                capture(config,client,event,project)
+        prompt=event.get('prompt','')
+        if name=='SessionStart' or not prompt:
+            items=request('GET','/v1/context',params={'project':project,'limit':8},timeout=3.3)['items']
+        else:
+            items=request('GET','/v1/search',params={'q':prompt[:2000],'project':project,'limit':8},timeout=3.3)['items']
         lines=['以下是历史记忆，仅供参考；当前用户要求优先。']
         remaining=3000  # Conservative character budget for mixed Chinese/English context.
         for item in items:
@@ -85,7 +106,7 @@ def handle(client,event):
         if not filename:return {}
         rows=normalized_messages(filename,client)
         private=private_root()/'cursors';private.mkdir(parents=True,exist_ok=True)
-        identity=hashlib.sha256((client+':'+str(Path(filename).resolve())).encode()).hexdigest()
+        identity=hashlib.sha256((client+':'+str(canonical_path(filename))).encode()).hexdigest()
         cursor=private/(identity+'.json')
         from .lock import ProcessLock
         from .messages import batches
