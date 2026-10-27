@@ -15,7 +15,7 @@ FONTDIR=Path('C:/Windows/Fonts')
 image=Image.new('RGB',(W*S,H*S),PAPER);draw=ImageDraw.Draw(image)
 svg=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="title desc">',
  '<title id="title">Self Agent 的 Hook 与记忆闭环</title>',
- '<desc id="desc">SessionStart 和 UserPromptSubmit 先采集再检索与重排；Stop 补采新增对话写入本地队列，后台异步提炼与比较后保存可追溯记忆，供下一次检索。</desc>',
+ '<desc id="desc">SessionStart 采集并读取默认记忆，UserPromptSubmit 采集并检索重排相关记忆；Stop 补采新增对话写入本地队列，后台异步提炼与比较后保存可追溯记忆，供下一次检索。</desc>',
  f'<rect width="{W}" height="{H}" fill="{PAPER}"/>']
 fonts={}
 def font(cjk,size,bold):
@@ -66,7 +66,7 @@ box(40,180,1520,370)
 text(76,222,'采集并取用 · 在模型处理前',30,GREEN,True)
 card(76,246,360,100,'01  会话开始 / 恢复','SessionStart · 先采集')
 card(76,416,360,100,'02  每次发送问题','UserPromptSubmit · 先采集')
-card(620,316,380,168,'本机知识库检索','个人记忆 + 当前项目',fill='#ffffff',detail='混合检索 · 重排 · 权限校验')
+card(620,316,380,168,'本机记忆取用','个人默认 + 当前项目',fill='#ffffff',detail='启动读默认 · 提问时检索重排')
 card(1160,316,330,168,'补入模型上下文','本次问题 + 相关记忆',detail='Codex 继续处理任务')
 line([(436,296),(530,296),(530,400)],arrow=False)
 line([(436,466),(530,466),(530,400)],arrow=False)

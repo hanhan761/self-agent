@@ -1,4 +1,4 @@
-<!-- Current direction: local Windows edition; the previous 4090 deployment is retained as legacy/rollback. -->
+<!-- Current verified state (2026-10-28): local-v0.2.1 / 0a578758354b is deployed on D and publicly published; 137 tests, scale/native/frozen/MCP/browser checks passed. Three current Codex hooks remain enabled/trusted. Legacy 4090 deployment is preserved. -->
 
 # Implementation plan
 
@@ -92,4 +92,4 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 2. Integrate upstream bounded retrieval/hybrid/dedup primitives while keeping canonical ownership/evidence/lifecycle boundaries — complete.
 3. Reuse mature APScheduler execution over authoritative SQLite tasks; add application-specific capacity and paid-request guards — complete.
 4. Run isolated scale, relevance, privacy/lifecycle/restore and real model/browser acceptance — complete; 137 tests, 100k canonical / 10,007 vectors, 12 positive + 12 negative queries, 7-call native lifecycle and frozen/browser/MCP acceptance.
-5. Update D installation without changing trusted commands, package a verified offline update, commit/push and publish GitHub artifacts — live update and all 5,559 checksums complete; 3 trusted hooks verified; GitHub publication in progress.
+5. Update D installation without changing trusted commands, package a verified offline update, commit/push and publish GitHub artifacts — complete; D update and 5,559 checksums verified, three trusted hooks confirmed, source pushed and local-v0.2.1 public assets verified by server SHA-256.

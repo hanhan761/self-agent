@@ -289,7 +289,8 @@
     "Synthetic isolated corpus: 100,000 canonical records and 10,007 vector records, not a million-vector stress test.",
     "24 relevance cases include calibration cases and 10 subsequently added queries; not an independent benchmark or statistical accuracy guarantee.",
     "No fresh Windows VM or new campus SSO login in this update.",
-    "Trusted host hooks and installed runtime acceptance are recorded separately."
+    "Trusted host hooks and installed runtime acceptance are recorded separately.",
+    "The vector noise records use a repeated synthetic template; no diverse long-running production corpus was evaluated."
   ],
   "hooks": {
     "startup": "bounded canonical confirmed defaults; no fabricated semantic query",
@@ -362,6 +363,34 @@
         "trust": "trusted"
       }
     ],
-    "codex_restart_required_for_this_in_place_update": false
+    "codex_restart_required_for_this_in_place_update": false,
+    "known_preference_recall": true,
+    "unrelated_query_empty": true
+  },
+  "publication": {
+    "url": "https://github.com/hanhan761/self-agent/releases/tag/local-v0.2.1",
+    "tag": "local-v0.2.1",
+    "source_commit": "8d1a8f90703121f47c581cc55ca3c61d7b875f95",
+    "public_verified": true,
+    "assets": [
+      {
+        "name": "Self-Agent-Local-0.2.1-0a578758354b-Setup.exe",
+        "bytes": 750234624,
+        "sha256": "4cf3b36f8dd7458f5117632b2ec74e2f3ba4fee94e2a413b2984aa7725d5f1f1",
+        "url": "https://github.com/hanhan761/self-agent/releases/download/local-v0.2.1/Self-Agent-Local-0.2.1-0a578758354b-Setup.exe"
+      },
+      {
+        "name": "self-agent-local-0.2.1-0a578758354b-windows-x64.zip",
+        "bytes": 750223942,
+        "sha256": "f89b3e2ef958c6ff6166746d4d76737438fa13a3e8b8553ff6adb926f1a90fa6",
+        "url": "https://github.com/hanhan761/self-agent/releases/download/local-v0.2.1/self-agent-local-0.2.1-0a578758354b-windows-x64.zip"
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 232,
+        "sha256": "a7446459358ae9a60d40f5bfaf03ce1e29ffeffd0dfd51e8cb9f1a0ded92a22e",
+        "url": "https://github.com/hanhan761/self-agent/releases/download/local-v0.2.1/SHA256SUMS.txt"
+      }
+    ]
   }
 }
