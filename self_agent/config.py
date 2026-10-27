@@ -18,6 +18,14 @@ class Config:
     secure_cookie: bool = False
     cpa_config_file: str = ''
     cpa_permissions_file: str = ''
+    local: bool = False
+    local_instance_id: str = ''
+    local_user_id: str = ''
+    local_started_at: float = 0
+    index_backend: str = 'mem0'
+    model_cache: str = ''
+    xjcode_home: str = ''
+    xjtu_account_fingerprint: str = ''
     semantic: bool = False
     embedding_model: str = 'BAAI/bge-m3'
     embedding_device: str = 'cpu'

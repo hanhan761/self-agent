@@ -1,3 +1,5 @@
+<!-- Current direction: local Windows edition; the previous 4090 deployment is retained as legacy/rollback. -->
+
 # Findings
 
 - The requirement is a durable personal/project knowledge store independent of AI accounts: keep source evidence, versions, export/restore and explicit review of inferred candidates.
@@ -15,3 +17,9 @@
 ## Natural memory implementation
 
 Current source ingestion slices serialized JSON by characters, losing role provenance for long conversations. Existing exact-content deduplication has no source aggregation or conflict resolution. Preserve legacy table layouts with additive side tables; extend archives to v2 while accepting v1. Current-device setup and authenticated stdio search already passed; host Hook trust remains a human step.
+
+## Local edition research
+
+User chose local-machine first and Codex + Claude Code. MCP Memory Service 12.4.0 is the selected pinned reusable backend (SQLite-vec + CPU ONNX); Basic Memory 0.24.1 no longer captures Stop, Claude-Mem 15.3.0 lacks native XJTU and has provider fallback, MemSearch documents Windows best-effort. XJCode local protected credentials exist; no credentials were printed. Codex already has inline Self Agent hooks; merge/remove by ownership to prevent double capture.
+
+Integration adjustment: upstream SQLite uses a conflicting memories schema. Preserve one authoritative lifecycle/source database and use MCP Memory Service SQLite-vec as a rebuildable projection (replacing Mem0/Qdrant locally). This avoids unsafe historical schema rewrites and preserves all existing privacy/restore guarantees. The native provider remains the only generative path.

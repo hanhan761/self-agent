@@ -24,11 +24,18 @@ class XjtuProvider:
 
     @property
     def configured(self):
-        return bool(self.config.xjtu_credentials or self.config.xjtu_native_config)
+        return bool(self.config.xjtu_credentials or self.config.xjtu_native_config or self.config.xjcode_home)
 
-    def complete(self, messages):
+    def preflight(self):
+        self._client()
+
+    def _client(self):
         if not self.configured:raise RuntimeError('provider_not_configured')
-        if self.config.xjtu_native_config:
+        if self.config.xjcode_home:
+            from .xjcode_auth import credentials
+            creds=credentials(self.config)
+            endpoint=self.config.xjtu_url
+        elif self.config.xjtu_native_config:
             import hashlib
             from pathlib import Path
             native=json.loads(Path(self.config.xjtu_native_config).read_text('utf-8'))
@@ -45,6 +52,10 @@ class XjtuProvider:
             routes=client.list_text_models()
             if self.config.xjtu_model not in routes:raise RuntimeError('model_not_granted')
             self._route=routes[self.config.xjtu_model]
+        return client
+
+    def complete(self, messages):
+        client=self._client()
         prompt=json.dumps(messages,ensure_ascii=False,separators=(',',':'))
         return client.complete(prompt,model=self._route)
 

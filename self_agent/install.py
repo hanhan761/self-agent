@@ -81,8 +81,47 @@ def install_client(client,home=None,repo=None,python=None):
     root_hooks=hooks.setdefault('hooks',{})
     for event in ('SessionStart','UserPromptSubmit','Stop'):
         entries=root_hooks.setdefault(event,[])
-        owned=lambda item:any(h.get('command')==command for h in item.get('hooks',[])) or owned_hook(item,client,runner)
-        entries[:]=[x for x in entries if not owned(x)]
+        kept=[]
+        for item in entries:
+            handlers=[h for h in item.get('hooks',[]) if h.get('command')!=command and not owned_hook({'hooks':[h]},client,runner)]
+            if handlers:kept.append({**item,'hooks':handlers})
+        entries[:]=kept
         entries.append({'hooks':[{'type':'command','command':command,'timeout':6 if event!='Stop' else 12}]})
     backup(hook_file,backups);save_json(hook_file,hooks)
     return {'client':client,'configured':True,'backup_directory':str(backups),'hook_review_required':client=='codex'}
+
+
+def remove_client(client,home=None,repo=None):
+    """Remove this installation's entries only. Never restore an entire old user config."""
+    home=Path(home or Path.home());repo=Path(repo or Path(__file__).resolve().parents[1]).resolve()
+    runner=str(repo/'scripts/hook_runner.py');mcp_runner=str(repo/'scripts/mcp_runner.py')
+    backups=private_root()/'config-backups'
+    if client=='claude':
+        file=home/'.claude.json'
+        if file.exists():
+            data=json.loads(file.read_text('utf-8'));server=data.get('mcpServers',{}).get('self_agent')
+            if server and server.get('args')==[mcp_runner]:
+                backup(file,backups);del data['mcpServers']['self_agent'];save_json(file,data)
+        hook_file=home/'.claude/settings.json'
+    else:
+        file=home/'.codex/config.toml'
+        if file.exists():
+            import tomllib
+            text=file.read_text('utf-8');server=tomllib.loads(text).get('mcp_servers',{}).get('self_agent',{})
+            begin,end='# self-agent:begin','# self-agent:end'
+            if server.get('args')==[mcp_runner] and begin in text and end in text:
+                start=text.index(begin);finish=text.index(end,start)+len(end)
+                backup(file,backups);file.write_text(text[:start]+text[finish:],'utf-8')
+        hook_file=home/'.codex/hooks.json'
+    if hook_file.exists():
+        data=json.loads(hook_file.read_text('utf-8'))
+        changed=False
+        for event,items in data.get('hooks',{}).items():
+            kept=[]
+            for item in items:
+                handlers=[h for h in item.get('hooks',[]) if not owned_hook({'hooks':[h]},client,runner)]
+                changed=changed or len(handlers)!=len(item.get('hooks',[]))
+                if handlers:kept.append({**item,'hooks':handlers})
+            data['hooks'][event]=kept
+        if changed:backup(hook_file,backups);save_json(hook_file,data)
+    return {'client':client,'removed':True}

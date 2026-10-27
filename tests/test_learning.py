@@ -254,6 +254,8 @@ def test_projection_scope_change_and_retry_are_idempotent(service):
 
 
 def test_partial_hook_upload_resumes_frozen_snapshot(tmp_path,monkeypatch):
+    import self_agent.client as client
+    monkeypatch.setattr(client,'client_config',lambda:{'local':False})
     import self_agent.hooks as hooks
     import httpx
     private=tmp_path/'private';private.mkdir()

@@ -17,7 +17,7 @@ def project_id(cwd=None):
     cwd=Path(cwd or os.getcwd()).resolve()
     git='C:/Program Files/Git/cmd/git.exe' if os.name=='nt' else shutil.which('git')
     if git:
-        result=subprocess.run([git,'-C',str(cwd),'config','--get','remote.origin.url'],capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=2,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
+        result=subprocess.run([git,'-C',str(cwd),'config','--get','remote.origin.url'],stdin=subprocess.DEVNULL,capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=2,creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
         if result.returncode==0:
             remote=result.stdout.strip().removesuffix('.git')
             if remote.startswith('git@'):remote=remote[4:].replace(':','/',1)
@@ -46,6 +46,7 @@ def normalized_messages(filename,client):
             elif client=='codex' and row.get('type')=='response_item':
                 item=row.get('payload',{})
                 if item.get('type')!='message' or item.get('role') not in ('user','assistant'):continue
+                if item.get('role')=='assistant' and item.get('phase')=='commentary':continue
                 content='\n'.join(x['text'] for x in item.get('content',[]) if isinstance(x,dict) and x.get('type') in ('input_text','output_text') and isinstance(x.get('text'),str))
                 if content:rows.append({'id':hashlib.sha256(raw.encode()).hexdigest(),'role':item['role'],'content':content,'observed_at':row.get('timestamp')})
     return rows
@@ -74,6 +75,12 @@ def handle(client,event):
             lines.append(line);remaining-=len(line)
         if len(lines)>1:return {'hookSpecificOutput':{'hookEventName':name,'additionalContext':'\n'.join(lines)}}
     elif name in ('Stop','SessionEnd'):
+        from .client import client_config
+        config=client_config()
+        if config.get('local'):
+            from .spool import capture
+            capture(config,client,event,project)
+            return {}
         filename=event.get('transcript_path')
         if not filename:return {}
         rows=normalized_messages(filename,client)

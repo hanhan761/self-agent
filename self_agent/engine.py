@@ -7,7 +7,10 @@ class Engine:
     def __init__(self,config,store,provider=None):
         self.config,self.store=config,store
         self.provider=provider or XjtuProvider(config)
-        self.index=Index(config,store)
+        if config.index_backend=='mcp-memory-service':
+            from .local_index import LocalIndex
+            self.index=LocalIndex(config,store)
+        else:self.index=Index(config,store)
         self.stop_event=threading.Event()
         self.thread=None
 
@@ -21,10 +24,14 @@ class Engine:
     def close(self):
         self.stop_event.set()
         if self.thread:self.thread.join(timeout=2)
+        if hasattr(self.index,'close'):self.index.close()
 
     def _loop(self):
         self.index.start()
         while not self.stop_event.is_set():
+            if self.config.local:
+                from .spool import drain
+                drain(self.config,self.store)
             self.store.lifecycle.expire()
             self.process_one()
             self.process_cleanup_one()
@@ -37,6 +44,12 @@ class Engine:
             row=db.execute("SELECT j.*,s.content,s.project FROM jobs j JOIN sources s ON s.id=j.source_id WHERE j.state='pending' AND j.next_at<=? ORDER BY j.created LIMIT 1",(time.time(),)).fetchone()
             if not row:return False
             job=dict(row)
+        if hasattr(self.provider,'preflight'):
+            try:self.provider.preflight()
+            except Exception as exc:
+                with self.store.tx() as db:db.execute('UPDATE jobs SET next_at=?,error=? WHERE id=?',(time.time()+30,type(exc).__name__,job['id']))
+                return False
+        with self.store.tx() as db:
             db.execute("UPDATE jobs SET state='running',attempts=attempts+1 WHERE id=?",(job['id'],))
         try:
             extracted=self.provider.extract(job['content'])

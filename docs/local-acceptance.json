@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-27",
+  "release_id": "ae1cf227eca9",
+  "automated_tests": {
+    "passed": 104,
+    "command": "python -m pytest -q"
+  },
+  "artifact": {
+    "file_checksums_verified": 5534,
+    "installer_sha256": "efa573aab1bc8c9c85b56381cdfe8e2fbec2af7b65a7bf931bc880c0fec724bf",
+    "archive_sha256": "6b302e79d5fcef399f6c9407542b29ebd2fc688dd71c6229cad0aa11e0896db1"
+  },
+  "actual_model": {
+    "provider": "native XJTU",
+    "model": "qwen3.8-max",
+    "isolated_profile": true,
+    "complete_extraction_and_correction": true
+  },
+  "hooks": {
+    "clients": [
+      "Codex",
+      "Claude Code"
+    ],
+    "automatic_extraction": true,
+    "prompt_recall": true,
+    "session_start_recall": true,
+    "cross_client_correction": true,
+    "replay_idempotent": true,
+    "stop_20_sample_p95_seconds": 0.42113879999669734,
+    "stop_max_seconds": 0.44953779999923427
+  },
+  "search": {
+    "warm_15_sample_p95_seconds": 0.0734295000002021,
+    "scope": "small synthetic corpus; not a general accuracy guarantee"
+  },
+  "mcp": {
+    "transport": "actual Windows pythonw stdio",
+    "tools": 5,
+    "write_and_recall": true,
+    "automatic_project_detection": true,
+    "current_device_read_only_connection_verified": true
+  },
+  "privacy_and_lifecycle": {
+    "owner_and_project_isolation": true,
+    "correction_excludes_old_preference": true,
+    "restore": true,
+    "unrelated_settings_preserved_in_isolated_profile": true,
+    "occupied_port_recovery_and_restart": true,
+    "current_device_unrelated_settings_preserved": true
+  },
+  "browser": {
+    "engine": "headless Microsoft Edge",
+    "automatic_one_use_post_login": true,
+    "http_only_same_site_cookie": true,
+    "desktop_1440": true,
+    "mobile_390": true,
+    "page_errors": 0
+  },
+  "first_login": {
+    "owner_only_named_pipe_and_dpapi_fixture": true,
+    "nonce_rejection_preserves_credentials": true,
+    "fresh_campus_sso_not_exercised": true,
+    "webview_runtime_missing_machine_install_not_exercised": true
+  },
+  "host_activation": {
+    "current_device_configured": true,
+    "codex_hook_review": "pending human review; no trust state modified",
+    "reload_required": true
+  },
+  "server_deployment_changed": false,
+  "current_device_migration": {
+    "completed": true,
+    "restored_memories": 0,
+    "restored_sources": 2,
+    "encrypted_private_backup": true
+  }
+}

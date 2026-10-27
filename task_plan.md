@@ -1,3 +1,5 @@
+<!-- Current direction: local Windows edition; the previous 4090 deployment is retained as legacy/rollback. -->
+
 # Implementation plan
 
 1. Repository initialization and first push — complete.
@@ -43,3 +45,15 @@ Remaining user-side product step: review the newly installed Codex hooks through
 5. Off-host release, current-space cleanup, local upgrade and verification — complete. Final release 49ca2b97056d; 61.5-second locked observation, actual public Hook loop and current-device MCP passed. Current paired space contained zero old memories. Browser visual verification unavailable (no CUA browser surfaces).
 
 Defaults: explicit changes auto-replace; personal preferences cross projects; legacy cleanup is reversible; explicit deadlines expire; facts decay at 180-day half-life with 0.8 floor. No guessed fact activation or automatic forgotten-memory resurrection.
+
+## Local seamless edition — 2026-10-27
+
+Goal: Windows local knowledge, Codex + Claude Code automatic recall/capture, native XJTU with protected XJCode login reuse, no server pairing.
+
+1. Verify pinned MCP Memory Service 12.4.0 integration and runtime — complete.
+2. Implement local setup, protected credentials, durable capture, service lifecycle — complete.
+3. Package private Windows runtime/model/login helper and GUI installer — complete; ae1cf227eca9.
+4. Automated/privacy/lifecycle/restore checks and actual local native/MCP/hook acceptance — complete; 104 tests, actual native extraction/correction, pythonw MCP, browser and port/restart checks. Human host trust/reload remains pending.
+5. Migrate current device after isolated acceptance; document and push GitHub — device migration and verification complete; publishing GitHub release.
+
+Preserve server deployment and unrelated client configuration. Human Codex hook trust/reload remains a host-controlled step. No personal history bulk import.

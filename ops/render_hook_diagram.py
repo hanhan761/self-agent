@@ -15,7 +15,7 @@ FONTDIR=Path('C:/Windows/Fonts')
 image=Image.new('RGB',(W*S,H*S),PAPER);draw=ImageDraw.Draw(image)
 svg=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-labelledby="title desc">',
  '<title id="title">Self Agent 的 Hook 与记忆闭环</title>',
- '<desc id="desc">SessionStart 和 UserPromptSubmit 检索并注入相关记忆；Stop 上传新增对话，后台异步提炼与比较后保存可追溯记忆，供下一次检索。</desc>',
+ '<desc id="desc">SessionStart 和 UserPromptSubmit 检索并注入相关记忆；Stop 将新增对话写入本地队列，后台异步提炼与比较后保存可追溯记忆，供下一次检索。</desc>',
  f'<rect width="{W}" height="{H}" fill="{PAPER}"/>']
 fonts={}
 def font(cjk,size,bold):
@@ -66,7 +66,7 @@ box(40,180,1520,370)
 text(76,222,'取用记忆 · 在模型处理前',30,GREEN,True)
 card(76,246,360,100,'01  会话开始 / 恢复','SessionStart')
 card(76,416,360,100,'02  每次发送问题','UserPromptSubmit')
-card(620,316,380,168,'知识库检索 · 4090','个人记忆 + 当前项目',fill='#ffffff',detail='关键词与语义检索 · 状态过滤')
+card(620,316,380,168,'本机知识库检索','个人记忆 + 当前项目',fill='#ffffff',detail='成熟检索底座 · 范围过滤')
 card(1160,316,330,168,'补入模型上下文','本次问题 + 相关记忆',detail='Codex 继续处理任务')
 line([(436,296),(530,296),(530,400)],arrow=False)
 line([(436,466),(530,466),(530,400)],arrow=False)
@@ -76,8 +76,8 @@ text(1022,382,'历史参考',22,MUTED)
 box(40,590,1520,390)
 text(76,635,'沉淀记忆 · 本轮回复结束后',30,GREEN,True)
 card(76,665,300,110,'03  本轮回复结束','Stop')
-card(446,665,300,110,'读取新增对话','脱敏 · 逐批上传')
-card(816,665,300,110,'保存原文并排队','4090 后台异步处理',fill='#ffffff')
+card(446,665,300,110,'新增对话入队','脱敏 · 本地可靠保存')
+card(816,665,300,110,'保存原文并排队','本机后台异步处理',fill='#ffffff')
 card(1186,665,300,110,'交晓智原生 API','提炼 · 比较 · 校验',fill='#ffffff')
 line([(376,720),(446,720)])
 line([(746,720),(816,720)])

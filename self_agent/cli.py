@@ -20,7 +20,9 @@ def main():
     serve=sub.add_parser('serve');serve.add_argument('--host');serve.add_argument('--port',type=int)
     connect=sub.add_parser('connect');connect.add_argument('--url',required=True);connect.add_argument('--token-file',required=True);connect.add_argument('--proxy',help='Explicit optional HTTP(S) network proxy')
     install=sub.add_parser('install-client');install.add_argument('--client',choices=['claude','codex'],required=True)
-    setup_cmd=sub.add_parser('setup');setup_cmd.add_argument('--url',default='https://self-agent.matterswarm.com');setup_cmd.add_argument('--client',choices=['auto','codex','claude','both'],default='auto');setup_cmd.add_argument('--pair-code-stdin',action='store_true');setup_cmd.add_argument('--proxy')
+    setup_cmd=sub.add_parser('setup');setup_cmd.add_argument('--url',default='https://self-agent.matterswarm.com');setup_cmd.add_argument('--client',choices=['auto','codex','claude','both'],default='auto');setup_cmd.add_argument('--pair-code-stdin',action='store_true');setup_cmd.add_argument('--proxy');setup_cmd.add_argument('--local',action='store_true');setup_cmd.add_argument('--model-cache');setup_cmd.add_argument('--xjcode-home')
+    for operation in ('status','repair','uninstall','stop-local','open'):
+        local_cmd=sub.add_parser(operation);local_cmd.add_argument('--root')
     sub.add_parser('mcp')
     hook=sub.add_parser('hook');hook.add_argument('--client',choices=['claude','codex'],required=True)
     sub.add_parser('inventory-local')
@@ -73,8 +75,17 @@ def main():
         private_file(private_root()/'client.json',json.dumps(values))
         print(json.dumps({'connected':True,'username':response.json()['username']}))
     elif args.command=='setup':
-        from .onboarding import setup
-        print(json.dumps(setup(args.url,args.client,sys.stdin.readline().strip() if args.pair_code_stdin else None,args.proxy),ensure_ascii=False))
+        if args.local:
+            from .local_runtime import setup_local
+            result=setup_local(args.client,model_cache=args.model_cache,xjcode_home=args.xjcode_home)
+        else:
+            from .onboarding import setup
+            result=setup(args.url,args.client,sys.stdin.readline().strip() if args.pair_code_stdin else None,args.proxy)
+        print(json.dumps(result,ensure_ascii=False))
+    elif args.command in ('status','repair','uninstall','stop-local','open'):
+        from . import local_runtime
+        operation='stop' if args.command=='stop-local' else 'open_ui' if args.command=='open' else args.command
+        print(json.dumps(getattr(local_runtime,operation)(args.root),ensure_ascii=False))
     elif args.command=='install-client':
         from .install import install_client
         print(json.dumps(install_client(args.client),ensure_ascii=False))

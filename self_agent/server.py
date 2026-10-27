@@ -87,19 +87,22 @@ def create_app(config=None,*,start_worker=True,provider=None):
         yield
         engine.close()
         store.close()
-    app=FastAPI(title='Self Agent API',version='0.1.0',lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None)
+    app=FastAPI(title='Self Agent API',version='0.2.0',lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None)
     app.state.store,app.state.auth,app.state.engine=store,auth,engine
     attempts=defaultdict(deque)
     attempts_lock=threading.Lock()
 
     @app.middleware('http')
     async def boundaries(request,call_next):
+        if config.local and request.headers.get('host') not in ('127.0.0.1:'+str(config.port),'localhost:'+str(config.port)):
+            return JSONResponse({'detail':'Invalid local host'},status_code=403)
+        local_open=config.local and request.url.path=='/api/local/open' and request.method=='POST'
         if request.method in ('POST','PATCH','DELETE','PUT'):
             length=request.headers.get('content-length')
             if length and (not length.isdigit() or int(length)>8*1024**2):return JSONResponse({'detail':'请求超过 8 MiB'},status_code=413)
             origin=request.headers.get('origin')
-            if origin and urlparse(origin).netloc!=request.headers.get('host'):return JSONResponse({'detail':'跨站请求被拒绝'},status_code=403)
-            if request.method!='DELETE' and request.headers.get('content-type','').split(';')[0]!='application/json':return JSONResponse({'detail':'需要 JSON 请求'},status_code=415)
+            if origin and not local_open and urlparse(origin).netloc!=request.headers.get('host'):return JSONResponse({'detail':'跨站请求被拒绝'},status_code=403)
+            if request.method!='DELETE' and not local_open and request.headers.get('content-type','').split(';')[0]!='application/json':return JSONResponse({'detail':'需要 JSON 请求'},status_code=415)
         response=await call_next(request)
         response.headers.update({'X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','X-Frame-Options':'DENY','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'"})
         if config.secure_cookie:
@@ -128,7 +131,44 @@ def create_app(config=None,*,start_worker=True,provider=None):
         if used>=config.max_data_bytes:raise HTTPException(507,'数据预算已达上限，请先导出并调整容量')
 
     @app.get('/healthz')
-    def health():return {'status':'ok','version':'0.1.0'}
+    def health(request:Request):
+        result={'status':'ok','version':'0.2.0',**({'local_instance_id':config.local_instance_id} if config.local else {})}
+        challenge=request.query_params.get('challenge','')
+        if config.local and 1<=len(challenge)<=64:
+            import hmac
+            token=(config.data_dir/'device.token').read_text('utf-8').strip()
+            result['proof']=hmac.new(token.encode(),challenge.encode(),hashlib.sha256).hexdigest()
+        return result
+
+    if config.local:
+        @app.post('/api/local/open')
+        async def open_local_page(request:Request):
+            # Only a private, one-use launcher POST can establish the local UI session.
+            from urllib.parse import parse_qs
+            from .lock import ProcessLock
+            from fastapi.responses import RedirectResponse
+            raw=await request.body()
+            if len(raw)>1024:raise HTTPException(400,'Invalid launch ticket')
+            ticket=parse_qs(raw.decode('ascii')).get('ticket',[''])[0]
+            file=config.data_dir/'ui-ticket.json'
+            with ProcessLock(config.data_dir/'ui-ticket.lock'):
+                if not file.exists():raise HTTPException(401,'请从本机 Self Agent 重新打开')
+                value=json.loads(file.read_text('utf-8'))
+                import hmac
+                if value['expires']<time.time() or not hmac.compare_digest(value['hash'],digest(ticket)):
+                    raise HTTPException(401,'打开请求已过期')
+                file.unlink()
+            response=RedirectResponse('/',status_code=303)
+            response.set_cookie('sa_session',auth.session(config.local_user_id),httponly=True,samesite='strict',max_age=7*86400)
+            return response
+
+        @app.post('/api/local/stop')
+        def stop_local(user=Depends(current)):
+            if not user['admin']:raise HTTPException(403,'需要本机管理员权限')
+            shutdown=getattr(app.state,'local_shutdown',None)
+            if shutdown is None:raise HTTPException(503,'本地服务未准备好')
+            shutdown()
+            return {'stopping':True}
 
     def throttle(request,category='login',limit=8):
         host=request.client.host if request.client else 'unknown'
@@ -139,7 +179,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
             times.append(time.time())
 
     @app.get('/api/auth/options')
-    def auth_options():return {'cpa':registry.configured,'guide':'https://cpa.matterswarm.com/guide'}
+    def auth_options():return {'local':config.local,'cpa':registry.configured,'guide':'https://cpa.matterswarm.com/guide'}
 
     @app.post('/api/login/key')
     def key_login(body:KeyLogin,request:Request,response:Response):
@@ -222,6 +262,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
         store.lifecycle.expire(user['id'])
         result=store.overview(user['id'])
         with store.tx() as db:result['cleanup']=[dict(r) for r in db.execute('SELECT id,state,processed,error,created FROM cleanup_jobs WHERE user_id=? ORDER BY created DESC LIMIT 5',(user['id'],))]
+        result['local']=config.local
         result['provider']={'configured':engine.provider.configured,'model':config.xjtu_model,'name':'交晓智原生 API'}
         result['search']={'semantic':engine.index.memory is not None and not engine.index.error,'state':engine.index.error,'keyword':True}
         return result

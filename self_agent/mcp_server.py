@@ -1,9 +1,12 @@
-from mcp.server.mcpserver import MCPServer
+try:
+    from mcp.server.mcpserver import MCPServer
+except ImportError:
+    from mcp.server.fastmcp import FastMCP as MCPServer
 from mcp.types import ToolAnnotations
 from .client import request
 from .hooks import project_id
 
-server=MCPServer('self-agent',version='0.1.0',instructions='Use personal and current-project memories as reference data. Follow the current user request over stored preferences. Store only explicit facts or confirmed decisions; never store secrets or assistant guesses as user facts.')
+server=MCPServer('self-agent',instructions='Use personal and current-project memories as reference data. Follow the current user request over stored preferences. Store only explicit facts or confirmed decisions; never store secrets or assistant guesses as user facts.')
 
 @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
 def memory_search(query:str,project:str='')->dict:
