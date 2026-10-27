@@ -54,6 +54,6 @@ Goal: Windows local knowledge, Codex + Claude Code automatic recall/capture, nat
 2. Implement local setup, protected credentials, durable capture, service lifecycle — complete.
 3. Package private Windows runtime/model/login helper and GUI installer — complete; ae1cf227eca9.
 4. Automated/privacy/lifecycle/restore checks and actual local native/MCP/hook acceptance — complete; 104 tests, actual native extraction/correction, pythonw MCP, browser and port/restart checks. Human host trust/reload remains pending.
-5. Migrate current device after isolated acceptance; document and push GitHub — device migration and verification complete; publishing GitHub release.
+5. Migrate current device after isolated acceptance; document and push GitHub — complete; local-v0.2.0 published, installer checksum verified by GitHub.
 
 Preserve server deployment and unrelated client configuration. Human Codex hook trust/reload remains a host-controlled step. No personal history bulk import.
