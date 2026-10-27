@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+<title id="title">Self Agent 的 Hook 与记忆闭环</title>
+<desc id="desc">SessionStart 和 UserPromptSubmit 检索并注入相关记忆；Stop 上传新增对话，后台异步提炼与比较后保存可追溯记忆，供下一次检索。</desc>
+<rect width="1600" height="1120" fill="#f5f5f0"/>
+<text x="76" y="86" fill="#275d45" font-size="48" font-weight="700"><tspan font-family="Arial">Self Agent </tspan><tspan font-family="Microsoft YaHei">的</tspan><tspan font-family="Arial"> Hook </tspan><tspan font-family="Microsoft YaHei">与记忆闭环</tspan></text>
+<text x="76" y="134" fill="#69776d" font-size="28" font-weight="400"><tspan font-family="Microsoft YaHei">开始与提问时取用记忆，回复结束后沉淀信息</tspan></text>
+<rect x="40" y="180" width="1520" height="370" rx="20" fill="#ffffff" stroke="#dce5db" stroke-width="2"/>
+<text x="76" y="222" fill="#275d45" font-size="30" font-weight="700"><tspan font-family="Microsoft YaHei">取用记忆</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">在模型处理前</tspan></text>
+<rect x="76" y="246" width="360" height="100" rx="20" fill="#eaf1e8" stroke="#dce5db" stroke-width="2"/>
+<text x="100" y="288" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Arial">01  </tspan><tspan font-family="Microsoft YaHei">会话开始</tspan><tspan font-family="Arial"> / </tspan><tspan font-family="Microsoft YaHei">恢复</tspan></text>
+<text x="100" y="326" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Arial">SessionStart</tspan></text>
+<rect x="76" y="416" width="360" height="100" rx="20" fill="#eaf1e8" stroke="#dce5db" stroke-width="2"/>
+<text x="100" y="458" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Arial">02  </tspan><tspan font-family="Microsoft YaHei">每次发送问题</tspan></text>
+<text x="100" y="496" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Arial">UserPromptSubmit</tspan></text>
+<rect x="620" y="316" width="380" height="168" rx="20" fill="#ffffff" stroke="#dce5db" stroke-width="2"/>
+<text x="644" y="358" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Microsoft YaHei">知识库检索</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> 4090</tspan></text>
+<text x="644" y="396" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">个人记忆</tspan><tspan font-family="Arial"> + </tspan><tspan font-family="Microsoft YaHei">当前项目</tspan></text>
+<text x="644" y="435" fill="#69776d" font-size="22" font-weight="400"><tspan font-family="Microsoft YaHei">关键词与语义检索</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">状态过滤</tspan></text>
+<rect x="1160" y="316" width="330" height="168" rx="20" fill="#eaf1e8" stroke="#dce5db" stroke-width="2"/>
+<text x="1184" y="358" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Microsoft YaHei">补入模型上下文</tspan></text>
+<text x="1184" y="396" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">本次问题</tspan><tspan font-family="Arial"> + </tspan><tspan font-family="Microsoft YaHei">相关记忆</tspan></text>
+<text x="1184" y="435" fill="#69776d" font-size="22" font-weight="400"><tspan font-family="Arial">Codex </tspan><tspan font-family="Microsoft YaHei">继续处理任务</tspan></text>
+<polyline points="436,296 530,296 530,400" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="436,466 530,466 530,400" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="530,400 620,400" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="620.00,400.00 609.47,405.75 609.47,394.25" fill="#275d45"/>
+<polyline points="1000,400 1160,400" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="1160.00,400.00 1149.47,405.75 1149.47,394.25" fill="#275d45"/>
+<text x="1022" y="382" fill="#69776d" font-size="22" font-weight="400"><tspan font-family="Microsoft YaHei">历史参考</tspan></text>
+<rect x="40" y="590" width="1520" height="390" rx="20" fill="#ffffff" stroke="#dce5db" stroke-width="2"/>
+<text x="76" y="635" fill="#275d45" font-size="30" font-weight="700"><tspan font-family="Microsoft YaHei">沉淀记忆</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">本轮回复结束后</tspan></text>
+<rect x="76" y="665" width="300" height="110" rx="20" fill="#eaf1e8" stroke="#dce5db" stroke-width="2"/>
+<text x="100" y="707" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Arial">03  </tspan><tspan font-family="Microsoft YaHei">本轮回复结束</tspan></text>
+<text x="100" y="745" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Arial">Stop</tspan></text>
+<rect x="446" y="665" width="300" height="110" rx="20" fill="#eaf1e8" stroke="#dce5db" stroke-width="2"/>
+<text x="470" y="707" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Microsoft YaHei">读取新增对话</tspan></text>
+<text x="470" y="745" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">脱敏</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">逐批上传</tspan></text>
+<rect x="816" y="665" width="300" height="110" rx="20" fill="#ffffff" stroke="#dce5db" stroke-width="2"/>
+<text x="840" y="707" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Microsoft YaHei">保存原文并排队</tspan></text>
+<text x="840" y="745" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Arial">4090 </tspan><tspan font-family="Microsoft YaHei">后台异步处理</tspan></text>
+<rect x="1186" y="665" width="300" height="110" rx="20" fill="#ffffff" stroke="#dce5db" stroke-width="2"/>
+<text x="1210" y="707" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Microsoft YaHei">交晓智原生</tspan><tspan font-family="Arial"> API</tspan></text>
+<text x="1210" y="745" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">提炼</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">比较</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">校验</tspan></text>
+<polyline points="376,720 446,720" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="446.00,720.00 435.47,725.75 435.47,714.25" fill="#275d45"/>
+<polyline points="746,720 816,720" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="816.00,720.00 805.47,725.75 805.47,714.25" fill="#275d45"/>
+<polyline points="1116,720 1186,720" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="1186.00,720.00 1175.47,725.75 1175.47,714.25" fill="#275d45"/>
+<rect x="816" y="835" width="670" height="112" rx="20" fill="#eaf1e8" stroke="#dce5db" stroke-width="2"/>
+<text x="840" y="877" fill="#275d45" font-size="28" font-weight="700"><tspan font-family="Arial">SQLite </tspan><tspan font-family="Microsoft YaHei">记忆库</tspan><tspan font-family="Arial"> + </tspan><tspan font-family="Microsoft YaHei">可重建检索索引</tspan></text>
+<text x="840" y="915" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">原文依据</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">适用范围</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">状态</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">版本</tspan></text>
+<polyline points="1336,775 1336,835" fill="none" stroke="#275d45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="1336.00,835.00 1330.25,824.47 1341.75,824.47" fill="#275d45"/>
+<text x="1095" y="814" fill="#69776d" font-size="22" font-weight="400"><tspan font-family="Microsoft YaHei">经校验的记忆</tspan></text>
+<text x="76" y="865" fill="#275d45" font-size="27" font-weight="700"><tspan font-family="Microsoft YaHei">后台整理规则</tspan></text>
+<text x="76" y="905" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">同义合并</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">新偏好替代旧偏好</tspan></text>
+<text x="76" y="944" fill="#252b27" font-size="25" font-weight="400"><tspan font-family="Microsoft YaHei">临时不长期保存</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">·</tspan><tspan font-family="Arial"> </tspan><tspan font-family="Microsoft YaHei">存疑先待确认</tspan></text>
+<polyline points="1486,891 1530,891 1530,275 810,275 810,316" fill="none" stroke="#6d9374" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="10 8"/>
+<polygon points="810.00,316.00 804.25,305.47 815.75,305.47" fill="#6d9374"/>
+<text x="1010" y="260" fill="#69776d" font-size="23" font-weight="400"><tspan font-family="Microsoft YaHei">更新后，供下一次检索</tspan></text>
+<text x="76" y="1034" fill="#275d45" font-size="27" font-weight="700"><tspan font-family="Microsoft YaHei">正常完整对话：新会话首轮通常</tspan><tspan font-family="Arial"> 3 </tspan><tspan font-family="Microsoft YaHei">次</tspan><tspan font-family="Arial"> Hook</tspan><tspan font-family="Microsoft YaHei">，后续每轮通常</tspan><tspan font-family="Arial"> 2 </tspan><tspan font-family="Microsoft YaHei">次。</tspan></text>
+<text x="76" y="1077" fill="#69776d" font-size="23" font-weight="400"><tspan font-family="Microsoft YaHei">恢复</tspan><tspan font-family="Arial"> / </tspan><tspan font-family="Microsoft YaHei">上下文压缩可能额外触发；后台提炼不算额外</tspan><tspan font-family="Arial"> Hook</tspan><tspan font-family="Microsoft YaHei">。需先在客户端信任启用。</tspan></text>
+</svg>
