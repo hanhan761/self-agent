@@ -1,5 +1,7 @@
 # self-agent
 
+![Self Agent：多设备与智能体共享一份持续积累的长期知识库](docs/assets/self-agent-hero.png)
+
 在线入口：[self-agent.matterswarm.com](https://self-agent.matterswarm.com)，可直接用 CPA 中转站密钥登录，无需 Tailscale。安装步骤见 [接入说明](docs/access.md)。
 
 个人智能体的长期知识库。一个私有网站和统一 API，让 Claude Code、Codex 与其他工具共享同一份可追溯的记忆。
