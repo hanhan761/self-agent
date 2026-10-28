@@ -281,3 +281,42 @@ def test_partial_hook_upload_resumes_frozen_snapshot(tmp_path,monkeypatch):
     assert len({k for k,v in seen})==len(seen)
     hooks.handle('codex',event)
     assert json.loads(cursor.read_text())=={'count':4}
+
+
+def test_archive_project_labels_are_scoped_validated_and_preserve_local_names(service):
+    from self_agent.archive import export_user,restore_user
+    c,app,uid=service
+    other=app.state.auth.create_user('label-other','another-long-password')
+    third=app.state.auth.create_user('label-third','another-long-password')
+    with app.state.store.tx() as db:
+        db.execute('INSERT INTO project_labels VALUES(?,?,?)',(uid,'a','Project Alpha'))
+        db.execute('INSERT INTO project_labels VALUES(?,?,?)',(other,'secret','Foreign Project'))
+    data=export_user(app.state.store,uid)
+    assert data['project_labels']==[{'project':'a','label':'Project Alpha'}]
+    assert 'user_id' not in json.dumps(data)
+    restore_user(app.state.store,third,data)
+    assert app.state.store.overview(third)['project_names']=={'a':'Project Alpha'}
+    with app.state.store.tx() as db:
+        db.execute('UPDATE project_labels SET label=? WHERE user_id=?',('Local Name',third))
+    restore_user(app.state.store,third,data)
+    assert app.state.store.overview(third)['project_names']=={'a':'Local Name'}
+    with pytest.raises(ValueError,match='invalid_project_labels'):
+        restore_user(app.state.store,third,{**data,'project_labels':[{'project':'b','label':'','user_id':other}]})
+    assert app.state.store.overview(other)['project_names']=={'secret':'Foreign Project'}
+
+
+def test_reconciliation_repair_rejects_unused_cross_scope_targets(tmp_path):
+    from self_agent.provider import XjtuProvider
+    provider=XjtuProvider(Config(tmp_path))
+    old={'id':'global','content':'通用规则','kind':'preference','project':'','status':'active','version':1,'observed_at':1,'topic':'topic','valid_until':None}
+    item={'content':'项目独立要求','kind':'decision','explicit':True,'evidence':'本项目独立要求','scope':'project','_project':'a'}
+    calls=[]
+    replies=iter([json.dumps({'relation':'independent','target_id':'global','overrides_id':None}),json.dumps({'relation':'independent','target_id':None,'overrides_id':None})])
+    def complete(messages):
+        calls.append(messages.copy())
+        return next(replies)
+    provider.complete=complete
+    assert provider.reconcile(item,[old])['target_id'] is None
+    assert len(calls)==2
+    with pytest.raises(ValueError,match='cross_scope_reconciliation'):
+        provider._validate_reconciliation(item,[old],{'relation':'ambiguous','target_id':'global'})

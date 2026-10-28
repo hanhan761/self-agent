@@ -84,6 +84,14 @@ class Credentials:
 
 class TopError(Exception):
     """Generic upstream failure; never include sensitive payloads in messages."""
+    def __init__(self,message,*,action=None,http_status=None,upstream_code=None,rate_receipt=None):
+        super().__init__(message);self.action=action;self.http_status=http_status;self.upstream_code=upstream_code;self.rate_receipt=rate_receipt
+
+def error_code(raw):
+    try:value=json.loads(raw).get('ResponseMetadata',{}).get('Error',{}).get('Code')
+    except (ValueError,AttributeError,TypeError):return None
+    return value if isinstance(value,str) and re.fullmatch(r'[A-Za-z0-9_.:-]{1,80}',value) else None
+
 
 
 @dataclass(frozen=True)
@@ -127,7 +135,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class TopClient:
-    def __init__(self, credentials: Credentials, url: str = "http://ai.xjtu.edu.cn:30040/", allow_campus_http: bool = False):
+    def __init__(self, credentials: Credentials, url: str = "http://ai.xjtu.edu.cn:30040/", allow_campus_http: bool = False, observer=None):
         parsed = urllib.parse.urlsplit(url)
         if parsed.path not in ("", "/") or parsed.query or parsed.fragment or parsed.username or parsed.password:
             raise ValueError("Invalid XJTU TOP URL")
@@ -136,9 +144,13 @@ class TopClient:
         if parsed.scheme not in ("http", "https") or not parsed.netloc:
             raise ValueError("Invalid XJTU TOP URL")
         self.credentials = credentials
+        self.observer=observer
         self.url = f"{parsed.scheme}://{parsed.netloc}/"
         self.host = parsed.netloc
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+
+    def _notify(self,action,phase,**values):
+        if self.observer:self.observer({'action':action,'phase':phase,'at':dt.datetime.now(dt.timezone.utc).timestamp(),**values})
 
     def _request(self, action: str, payload: dict, stream: bool = False):
         query = {
@@ -155,12 +167,22 @@ class TopClient:
         if stream:
             headers["Accept"] = "text/event-stream"
         request = urllib.request.Request(self.url + "?" + encoded, data=body, headers=headers, method="POST")
+        self._notify(action,'sending')
         try:
-            return self.opener.open(request, timeout=120 if stream else 20)
+            response=self.opener.open(request, timeout=120 if stream else 20)
+            self._notify(action,'received',http_status=response.status)
+            return response
         except (urllib.error.HTTPError, urllib.error.URLError, OSError, TimeoutError) as exc:
-            if isinstance(exc, urllib.error.HTTPError):
-                exc.close()
-            raise TopError("XJTU TOP request failed") from None
+            status=exc.code if isinstance(exc,urllib.error.HTTPError) else None;code=None;receipt=None
+            if isinstance(exc,urllib.error.HTTPError):
+                try:
+                    body=exc.read(65536);code=error_code(body)
+                    from .native_rate import rate_receipt
+                    receipt=rate_receipt(status,body,dict(exc.headers or {}))
+                except OSError:pass
+                finally:exc.close()
+            self._notify(action,'failed',http_status=status,upstream_code=code,rate_receipt=receipt)
+            raise TopError("XJTU TOP request failed",action=action,http_status=status,upstream_code=code,rate_receipt=receipt) from None
 
     def call(self, action: str, payload: dict) -> dict:
         with self._request(action, payload) as response:
@@ -174,7 +196,7 @@ class TopClient:
             if not isinstance(result, dict):
                 raise ValueError("not an object")
             if result.get("ResponseMetadata", {}).get("Error"):
-                raise TopError("XJTU TOP rejected the request")
+                raise TopError("XJTU TOP rejected the request",action=action,http_status=200,upstream_code=error_code(raw))
             return result["Result"]
         except (ValueError, KeyError, TypeError, AttributeError):
             raise TopError("Unexpected XJTU TOP response") from None
@@ -275,14 +297,18 @@ class TopClient:
         })["ConversationInfo"]
         conversation_id = created["ConversationID"]
         session_id = created["ProjectList"][0]["SessionID"]
+        self._notify("CreateConversation","prepared",conversation_id=conversation_id,session_id=session_id)
         inserted = self.call("BatchCreateMessages", {
             "ConversationID": conversation_id,
             "WorkspaceID": workspace,
             "MessageList": [{"SessionID": session_id, "ContentType": "text", "Content": question}],
         })["MessageList"][0]
+        self._notify("BatchCreateMessages","prepared",conversation_id=conversation_id,session_id=session_id,message_id=inserted["MessageID"])
         return conversation_id, session_id, inserted["MessageID"]
 
     def complete(self, question: str, model: ModelRoute | None = None) -> str:
         conversation_id, session_id, message_id = self.prepare(question, model)
         with self.open_chat(session_id, message_id) as response:
-            return "".join(self.iter_chat(response, conversation_id)).strip()
+            answer="".join(self.iter_chat(response, conversation_id)).strip()
+        self._notify("Chat","completed",conversation_id=conversation_id)
+        return answer

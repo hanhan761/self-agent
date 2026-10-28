@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-28",
+  "dataset": "Authorized same-user Codex/Claude history; private corpus retained outside Git",
+  "source_files": 298,
+  "main_sessions": 273,
+  "user_messages": 3051,
+  "project_scopes": 44,
+  "proposals": 635,
+  "completed_history_jobs": 104,
+  "baseline_active": 9,
+  "after_active": 581,
+  "candidate": 25,
+  "superseded": 18,
+  "automated_tests": 156,
+  "real_corpus": {
+    "history_active": 573,
+    "all_counts": {
+      "candidate": 25,
+      "active": 581,
+      "superseded": 18
+    },
+    "history_evidence_integrity": true,
+    "paraphrase_top5": {
+      "passed": 12,
+      "total": 12,
+      "missing_cases": 0
+    },
+    "literal_top5": {
+      "passed": 12,
+      "total": 12
+    },
+    "cross_project": {
+      "passed": 12,
+      "total": 12
+    },
+    "unrelated": {
+      "passed": 4,
+      "total": 4
+    },
+    "search_ms": {
+      "p50": 435.58619999384973,
+      "p95": 604.0829999838024,
+      "queries": 40
+    },
+    "restore": {
+      "passed": true,
+      "restored": 624,
+      "source_count": 116,
+      "evidence_count": 664,
+      "labels": 44,
+      "owner_isolation": true,
+      "forgotten_not_resurrected": true
+    },
+    "projection": {
+      "semantic": true,
+      "state": "",
+      "keyword": true,
+      "reranking": true,
+      "rerank_state": ""
+    }
+  },
+  "actual_browser": {
+    "passed": true,
+    "desktop_and_mobile": true,
+    "page_errors": 0
+  },
+  "actual_mcp": {
+    "passed": true,
+    "tools": 5,
+    "transport": "pythonw stdio"
+  },
+  "installed": {
+    "verified_files": 5658,
+    "changed_source_files_match": 10,
+    "unchanged_settings": 8
+  },
+  "limits": [
+    "Small manually selected query sample; not a universal recall guarantee",
+    "Images, audio and attachments were not OCRed",
+    "Generative processing uses the authorized native XJTU provider; it is not fully offline",
+    "Earlier uncertain model receipts remain distinct from completed reviewed import jobs",
+    "Public local-v0.2.1 installer was not rebuilt for this source update"
+  ]
+}

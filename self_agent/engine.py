@@ -1,8 +1,9 @@
 import threading
 import time
 from .index import Index
-from .provider import XjtuProvider
+from .provider import XjtuProvider,ReconciliationError
 from .capacity import Capacity,Backpressure
+from .xjtu_top import TopError
 
 class ReconciliationUnavailable(RuntimeError):pass
 
@@ -57,10 +58,14 @@ class Engine:
         if self.index.error=='not_loaded':self.index.start()
         self.index.sync()
 
-    def process_one(self):
+    def process_one(self,job_id=None):
+        # Explicit import jobs use separate states so live capture cannot claim them.
+        history=job_id is not None
+        if history and (not self.config.local or not self.config.local_user_id):raise ValueError('local_import_only')
+        pending,running=('history_pending','history_running') if history else ('pending','running')
         if not self.provider.configured or not getattr(self.index,'ready_for_reconcile',True):return False
         with self.store.tx() as db:
-            row=db.execute("SELECT j.*,s.content,s.project FROM jobs j JOIN sources s ON s.id=j.source_id WHERE j.state='pending' AND j.next_at<=? ORDER BY j.created LIMIT 1",(time.time(),)).fetchone()
+            row=db.execute("SELECT j.*,s.content,s.project FROM jobs j JOIN sources s ON s.id=j.source_id WHERE j.state=? AND j.next_at<=? AND (? IS NULL OR j.id=? AND j.user_id=?) ORDER BY j.created LIMIT 1",(pending,time.time(),job_id,job_id,self.config.local_user_id)).fetchone()
             if not row:return False
             job=dict(row)
         try:Capacity(self.config).check(1024**2)
@@ -71,25 +76,39 @@ class Engine:
                 with self.store.tx() as db:db.execute('UPDATE jobs SET next_at=?,error=? WHERE id=?',(time.time()+30,type(exc).__name__,job['id']))
                 return False
         with self.store.tx() as db:
-            if not db.execute("UPDATE jobs SET state='running',attempts=attempts+1 WHERE id=? AND state='pending'",(job['id'],)).rowcount:return False
+            if not db.execute("UPDATE jobs SET state=?,attempts=attempts+1 WHERE id=? AND state=?",(running,job['id'],pending)).rowcount:return False
         try:
             import json
             with self.store.tx() as db:cached=db.execute('SELECT items,next_item FROM job_extractions WHERE job_id=?',(job['id'],)).fetchone()
             if cached:extracted=json.loads(cached['items']);offset=cached['next_item']
             else:
+                if history:raise ValueError('history_extraction_checkpoint_required')
                 extracted=self.provider.extract(job['content']);offset=0
                 with self.store.tx() as db:db.execute('INSERT INTO job_extractions VALUES(?,?,0)',(job['id'],json.dumps(extracted,ensure_ascii=False)))
             with self.store.tx() as db:source=dict(db.execute('SELECT * FROM sources WHERE id=? AND user_id=?',(job['source_id'],job['user_id'])).fetchone())
             # Complete validated extraction is checkpointed before infrastructure deferrals.
             for position,item in enumerate(extracted[offset:],offset):
-                candidates,decision=self.prepare(job['user_id'],source,item)
+                quarantined=False
+                try:candidates,decision=self.prepare(job['user_id'],source,item)
+                except ReconciliationError:
+                    if not history:raise
+                    # Invalid confirmed relationships cannot overwrite knowledge or stall later items.
+                    candidates,decision,quarantined=[],{'relation':'ambiguous'},True
                 Capacity(self.config).check(len(item['content'].encode())*4+32768)
                 with self.store.tx() as db:
-                    self.store.lifecycle.apply(job['user_id'],source,item,decision,candidates)
+                    learned=self.store.lifecycle.apply(job['user_id'],source,item,decision,candidates)
+                    if quarantined and learned and learned['status']=='candidate':
+                        self.store.lifecycle.metadata(learned['id'],observed_at=learned['observed_at'],valid_until=learned['valid_until'],topic=learned['topic'],reason='unvalidated_reconciliation')
                     db.execute('UPDATE job_extractions SET next_item=? WHERE job_id=?',(position+1,job['id']))
             with self.store.tx() as db:db.execute("UPDATE jobs SET state='done',error='' WHERE id=?",(job['id'],))
         except (Backpressure,ReconciliationUnavailable) as exc:
-            with self.store.tx() as db:db.execute("UPDATE jobs SET state='pending',next_at=?,error=? WHERE id=?",(time.time()+5,getattr(exc,'reason','index_unavailable'),job['id']))
+            with self.store.tx() as db:db.execute("UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?",(pending,time.time()+5,getattr(exc,'reason','index_unavailable'),job['id']))
+        except TopError as exc:
+            receipt=exc.rate_receipt or {}
+            if history and receipt.get('limited'):
+                with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?',(pending,time.time()+max(65,receipt.get('retry_after_seconds',0)),'native_rate_limited',job['id']))
+            else:
+                with self.store.tx() as db:db.execute("UPDATE jobs SET state='uncertain',error=? WHERE id=?",(type(exc).__name__,job['id']))
         except Exception as exc:
             state='failed' if isinstance(exc,ValueError) else 'uncertain'
             with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,error=? WHERE id=?',(state,type(exc).__name__,job['id']))
@@ -109,6 +128,9 @@ class Engine:
             candidates+=personal
         item['_project']=scope
         if not candidates:return candidates,{'relation':'independent'}
+        from .store import fingerprint
+        exact=next((m for m in candidates if m['project']==scope and fingerprint(m['content'])==fingerprint(item['content']) and m['valid_until']==item.get('valid_until')),None)
+        if exact:return candidates,{'relation':'equivalent','target_id':exact['id'],'target_version':exact['version']}
         if not hasattr(self.provider,'reconcile'):return candidates,{'relation':'ambiguous'}
         return candidates,self.provider.reconcile(item,candidates)
 
@@ -183,7 +205,7 @@ class Engine:
         groups=[]
         with self.store.tx() as db:
             for scope in dict.fromkeys(['',project]):
-                ids=[r[0] for r in db.execute("SELECT id FROM memories WHERE user_id=? AND project=? AND status='active' AND kind IN ('preference','decision','procedure') ORDER BY updated DESC LIMIT ?",(uid,scope,limit))]
+                ids=[r[0] for r in db.execute("SELECT m.id FROM memories m LEFT JOIN memory_metadata x ON x.memory_id=m.id WHERE m.user_id=? AND m.project=? AND m.status='active' AND m.kind IN ('preference','decision','procedure') ORDER BY COALESCE(x.observed_at,m.created) DESC,m.updated DESC LIMIT ?",(uid,scope,limit))]
                 groups.append([self.store.brief(uid,mid) for mid in ids])
         pool=[m for batch in zip_longest(*groups) for m in batch if m and m['effective_state']!='expired']
         topics={m['topic'] for m in pool if m['project']==project and project and m['topic']}

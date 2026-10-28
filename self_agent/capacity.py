@@ -41,7 +41,7 @@ class Capacity:
         if database.exists():
             try:
                 with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True,timeout=.2)) as db:
-                    pending,oldest=db.execute("SELECT count(*),min(created) FROM jobs WHERE state IN ('pending','running')").fetchone()
+                    pending,oldest=db.execute("SELECT count(*),min(created) FROM jobs WHERE state IN ('pending','running','history_pending','history_running')").fetchone()
             except sqlite3.Error:raise Backpressure('queue_unavailable') from None
         return {'checked_at':time.time(),'bytes_used':used,'capture_batches':len(files),'capture_bytes':queued_bytes,
                 'pending_jobs':pending,'oldest_pending_at':oldest,'blocked_reason':state.get('blocked_reason','')}

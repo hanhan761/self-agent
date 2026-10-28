@@ -75,3 +75,4 @@ urllib3==2.8.0
 uvicorn==0.54.0
 yarl==1.25.1
 zeroconf==0.151.5
+detect-secrets==1.5.0

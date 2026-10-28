@@ -9,6 +9,7 @@ from .store import words,fingerprint
 
 def export_user(store,uid):
     with store.tx() as db:
+        labels=[dict(r) for r in db.execute('SELECT project,label FROM project_labels WHERE user_id=? ORDER BY project',(uid,))]
         sources=[dict(r) for r in db.execute('SELECT * FROM sources WHERE user_id=?',(uid,))]
         memories=[dict(r) for r in db.execute('SELECT * FROM memories WHERE user_id=?',(uid,))]
         history=[dict(r) for r in db.execute('SELECT v.* FROM versions v JOIN memories m ON m.id=v.memory_id WHERE m.user_id=?',(uid,))]
@@ -23,18 +24,22 @@ def export_user(store,uid):
         for snapshot in snapshots.values():
             if snapshot:snapshot['memory'].pop('user_id',None)
         change['snapshots']=json.dumps(snapshots)
-    return {'format':'self-agent-v2','sources':sources,'memories':memories,'history':history,'metadata':metadata,'evidence':evidence,'relations':relations,'changes':changes}
+    return {'format':'self-agent-v2','sources':sources,'memories':memories,'history':history,'metadata':metadata,'evidence':evidence,'relations':relations,'changes':changes,'project_labels':labels}
 
 
 def restore_user(store,uid,data):
     if not isinstance(data,dict) or data.get('format') not in ('self-agent-v1','self-agent-v2'):raise ValueError('unsupported_backup')
     sources,memories,history=(data.get(k) for k in ('sources','memories','history'))
     if not all(isinstance(x,list) for x in (sources,memories,history)) or len(memories)>50000 or len(sources)>50000:raise ValueError('invalid_backup')
+    labels=data.get('project_labels',[])
+    if not isinstance(labels,list) or len(labels)>50000 or any(not isinstance(row,dict) or set(row)!={'project','label'} or not isinstance(row['project'],str) or not 1<=len(row['project'])<=200 or not isinstance(row['label'],str) or not 1<=len(row['label'])<=120 for row in labels):raise ValueError('invalid_project_labels')
     restored=0
     source_map={}
     memory_map={}
     new_ids=set()
     with store.tx():
+        for label in labels:
+            store.db.execute('INSERT OR IGNORE INTO project_labels VALUES(?,?,?)',(uid,label['project'],label['label']))
         for source in sources:
             if not isinstance(source,dict) or not isinstance(source.get('content'),str) or len(source['content'])>120000:raise ValueError('invalid_source')
             sid,_=store.source(uid,str(source['project'])[:200],str(source['title'])[:200],source['content'],kind='restored',external_id='restore:'+source['id'])

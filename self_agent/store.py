@@ -10,6 +10,7 @@ import time
 
 SCHEMA = '''
 CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, admin INTEGER NOT NULL, created REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS project_labels(user_id TEXT NOT NULL REFERENCES users(id),project TEXT NOT NULL,label TEXT NOT NULL,PRIMARY KEY(user_id,project));
 CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS api_keys(id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, hash TEXT UNIQUE NOT NULL, created REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), project TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, kind TEXT NOT NULL, external_id TEXT NOT NULL, hash TEXT NOT NULL, created REAL NOT NULL, UNIQUE(user_id,project,external_id,hash));
@@ -188,4 +189,5 @@ class Store:
             jobs=[dict(r) for r in db.execute('SELECT id,state,attempts,error,created FROM jobs WHERE user_id=? ORDER BY created DESC LIMIT 30',(uid,))]
             sources=db.execute('SELECT count(*) FROM sources WHERE user_id=?',(uid,)).fetchone()[0]
             captured=db.execute("SELECT max(created) FROM sources WHERE user_id=? AND kind='conversation'",(uid,)).fetchone()[0]
-        return {'counts':counts,'projects':projects,'jobs':jobs,'sources':sources,'last_captured_at':captured}
+            labels={r['project']:r['label'] for r in db.execute('SELECT project,label FROM project_labels WHERE user_id=?',(uid,))}
+        return {'counts':counts,'projects':projects,'project_names':labels,'jobs':jobs,'sources':sources,'last_captured_at':captured}

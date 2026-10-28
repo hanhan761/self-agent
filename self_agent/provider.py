@@ -14,15 +14,21 @@ EXTRACTION = '''从用户与智能体的会话中提取值得长期保留的个�
 个人通用偏好、身份事实归 personal；项目技术选择或有项目限定的偏好归 project；“这次、仅本次”归 session，不作长期保存。
 “我喜欢先看结论”无需额外的记住口令即可 explicit=true；用户转述、引用、假设、否定和助手的建议不能据此确认为用户偏好。
 只有用户明确表达完整年月日截止日期时才输出 valid_until，并引用日期原文；模糊期限不推算。
+“是不是可以考虑X、是否可行、要不要用X”等路线探讨不等于已确认选择，不能写成已采用或要求引入；没有明确选择时省略，确有长期价值也只能作为 explicit=false 的未确认想法。
+一次性清理磁盘、启动、上传、下载、重跑及瞬时运行状态不形成长期规则；希望、计划和要求不能改写成已完成。
+每个 content 的全部事实细节都必须被同一段 evidence 用户原话直接支持，不能从助手或其他位置补入未被该引文支持的细节。
+只针对一张图或一次汇报的措辞要求不能升级成跨项目个人偏好；明确稳定个人习惯、全局默认或所有项目要求才用 personal。
 同一偏好改变时保留最新明确表达，不能把“以前喜欢”提炼成当前习惯。
+对于“这次可用90节点”“这些目录可以删”“这张图排成2×3”“这个页面免密码跳转”，只记录本次/本项目的限制，不形成跨项目规则；一次删除授权绝不是未来删除授权。缺少稳定通用依据时优先 project，单次授权与运行状态用 session。
 每一条必须包含 scope，不能漏填。所在会话有 project 不代表所有内容都是项目记忆。
 “所有项目都用中文”“跨项目默认用中文”必须 personal，不能 project；“只在项目 A 使用中文”才 project。
 同一主体同一方面同一含义只输出一条：“我阅读技术说明喜欢中文，所有项目默认中文”是一条 personal preference，不能拆成个人偏好和项目偏好两条。
 “这次用中文，之后仍按长期偏好”只描述这次，不能重复提炼没有明说的长期偏好。'''
 
 class XjtuProvider:
-    def __init__(self, config):
+    def __init__(self, config,observer=None):
         self.config=config
+        self.observer=observer
         self._route=None
 
     @property
@@ -50,7 +56,8 @@ class XjtuProvider:
         else:
             creds=Credentials.from_file(self.config.xjtu_credentials)
             endpoint=self.config.xjtu_url
-        client=TopClient(creds,url=endpoint,allow_campus_http=self.config.allow_campus_http)
+        options={'observer':self.observer} if self.observer else {}
+        client=TopClient(creds,url=endpoint,allow_campus_http=self.config.allow_campus_http,**options)
         if self._route is None:
             routes=client.list_text_models()
             if self.config.xjtu_model not in routes:raise RuntimeError('model_not_granted')
@@ -92,7 +99,7 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
             reply=self.complete(messages)
             try:return self._validate_reconciliation(item,candidates,parse_json(reply))
             except (ValueError,TypeError):
-                if attempt:raise ValueError('reconciliation_validation_failed') from None
+                if attempt:raise ReconciliationError('reconciliation_validation_failed') from None
                 messages += [{'role':'assistant','content':reply},{'role':'user','content':'上一条结构或范围校验未通过。target_id 只能是相同 project 的已有记忆；overrides_id 仅用于项目例外引用个人默认，其他情况必须 null。supersedes 的 evidence 必须是 new.evidence 的连续原文片段。重新输出严格 JSON。'}]
 
     def _validate_reconciliation(self,item,candidates,result):
@@ -101,7 +108,9 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
         old=next((m for m in candidates if m['id']==target),None)
         if relation in ('equivalent','supersedes') and not old:raise ValueError('invalid_reconciliation_target')
         if target and not old:raise ValueError('invalid_reconciliation_target')
-        if old and old['project']!=item.get('_project',old['project']) and relation in ('supersedes','equivalent'):raise ValueError('cross_scope_reconciliation')
+        if relation=='independent' and target:raise ValueError('unused_reconciliation_target')
+        if old and old['project']!=item.get('_project',old['project']):raise ValueError('cross_scope_reconciliation')
+        if old and relation!='equivalent' and old.get('kind',item.get('kind'))!=item.get('kind'):raise ValueError('cross_kind_reconciliation')
         override=next((m for m in candidates if m['id']==result.get('overrides_id')),None)
         if result.get('overrides_id') and (not override or override['project'] or not item.get('_project') or override['status']!='active' or relation!='independent'):raise ValueError('invalid_personal_default')
         if relation=='supersedes':
@@ -121,6 +130,11 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
         file=directory/name
         file.write_text(json.dumps({'response':response[:1024**2],'stage':'validated-complete-reply'},ensure_ascii=False),'utf-8')
         file.chmod(0o600)
+
+
+class ReconciliationError(ValueError):
+    """A confirmed complete reply failed bounded relationship validation."""
+    pass
 
 
 class ExtractionError(ValueError):

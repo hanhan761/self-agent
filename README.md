@@ -43,6 +43,7 @@
 - **[MCP Memory Service 12.4.0](https://github.com/doobidoo/mcp-memory-service/tree/v12.4.0)**：直接调用上游混合检索（BM25＋向量）、语义重复候选查找、批量索引写入、SQLite-vec 范围隔离与 ONNX 编码。
 - **[FlashRank 0.2.10](https://github.com/PrithivirajDamodaran/FlashRank)＋[BGE reranker base](https://huggingface.co/BAAI/bge-reranker-base)**：对最多 24 个候选作中英文相关性重排；使用离线 INT8 权重、CPU 两线程，无关时允许返回空。
 - **[APScheduler 3.11.3](https://apscheduler.readthedocs.io/en/3.x/userguide.html)＋filelock**：独立执行采集、提炼和索引任务，限制并发并合并错过的调度；跨进程协调容量预留。
+- **[detect-secrets 1.5.0](https://github.com/Yelp/detect-secrets/tree/v1.5.0)**：历史会话的离线凭据检测，结合现有脱敏与用户原话校验。
 - **多语 MiniLM＋ONNX Runtime**：CPU 执行中文与跨语言检索；模型随包预装，运行时不自动更换模型。
 - **XJCode 登录组件＋Windows DPAPI**：复用校园登录流程，在本机加密保存凭据；交晓智调用使用原生 HMAC API。
 - **FastAPI、MCP SDK、SQLite、jieba、cryptography**：本地服务、智能体工具、权威记录、中文关键词与加密备份。
@@ -65,6 +66,8 @@ Self Agent 保留来源校验、项目隔离、记忆生命周期和客户端适
 队列默认上限 1,000 个批次／64 MiB、1,000 个待处理任务，磁盘至少保留 512 MiB。达到限制时暂停采集且不推进游标，空间恢复后补采；不自动删除知识。完整提炼结果先保存检查点，安全的索引延迟不会再次发起同一提炼请求。结果不明的模型调用仍需明确重试。
 
 规模及相关性验证见 [压测结果](docs/scaling-acceptance.json)。这是隔离合成数据测试，不等同于百万条、长期连续运行或任意领域的质量保证。
+
+显式授权后也可以补录本机历史会话，按原始时间、角色和项目整理；过滤一次性操作授权，范围存疑的内容保留为候选。详见 [历史吸收与实测](docs/history-import.md)。这项改进已进入源码，现有 local-v0.2.1 安装包尚未重新打包。
 
 ## 开发与验证
 

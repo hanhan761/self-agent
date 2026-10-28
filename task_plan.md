@@ -93,3 +93,10 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 3. Reuse mature APScheduler execution over authoritative SQLite tasks; add application-specific capacity and paid-request guards — complete.
 4. Run isolated scale, relevance, privacy/lifecycle/restore and real model/browser acceptance — complete; 137 tests, 100k canonical / 10,007 vectors, 12 positive + 12 negative queries, 7-call native lifecycle and frozen/browser/MCP acceptance.
 5. Update D installation without changing trusted commands, package a verified offline update, commit/push and publish GitHub artifacts — complete; D update and 5,559 checksums verified, three trusted hooks confirmed, source pushed and local-v0.2.1 public assets verified by server SHA-256.
+
+## Authorized local historical absorption and real-corpus validation — 2026-10-28
+1. Inventory authorized Codex/Claude historical sessions and existing import paths — complete.
+2. Freeze a private D-drive manifest; exclude runtime/tool noise and credentials; preserve roles, project scopes, original times and existing deletions — complete.
+3. Validate isolated chronological history and improve ingestion/reconciliation with mature components — complete.
+4. Absorb validated historical knowledge into the live local space — complete; 635 items, 104 completed jobs; current counts 581 active / 25 candidate / 18 superseded.
+5. Verify real-corpus relevance, privacy/lifecycle/restore and management — complete; 156 tests, actual browser/MCP, 12 independent paraphrases + 12 literal lookups + 12 scope checks + 4 unrelated queries. Private report remains on D; source synchronization follows.
