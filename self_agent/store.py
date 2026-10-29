@@ -165,6 +165,24 @@ class Store:
         with self.tx() as db:
             return [(self.get if details else self.brief)(uid,x['id']) for x in db.execute(sql,params)]
 
+    def memory_page(self,uid,*,project=None,status='active',offset=0,limit=100,query='',kind='',sort='updated',exact_project=False):
+        """Owner-scoped management filters; exact project browsing does not change recall."""
+        if status not in ('active','candidate','superseded','forgotten') or kind not in ('','preference','procedure','decision','fact'):raise ValueError('无效记忆筛选')
+        orders={'updated':'m.updated DESC,m.id','oldest':'m.created ASC,m.id','observed':'COALESCE(x.observed_at,m.created) DESC,m.id'}
+        if sort not in orders or not 1<=limit<=200:raise ValueError('无效排序或分页')
+        joins=' FROM memories m LEFT JOIN memory_metadata x ON x.memory_id=m.id LEFT JOIN project_labels p ON p.user_id=m.user_id AND p.project=m.project'
+        where=' WHERE m.user_id=? AND m.status=?';params=[uid,status]
+        if project is not None:
+            where+=' AND m.project=?' if exact_project else ' AND m.project IN (?,?)'
+            params += [project] if exact_project else ['',project]
+        if kind:where+=' AND m.kind=?';params.append(kind)
+        if query.strip():
+            where+=" AND instr(lower(m.content||' '||m.title||' '||m.project||' '||COALESCE(x.topic,'')||' '||COALESCE(p.label,'')),lower(?))>0";params.append(query.strip())
+        with self.tx() as db:
+            total=db.execute('SELECT count(*)'+joins+where,params).fetchone()[0]
+            ids=[r[0] for r in db.execute('SELECT m.id'+joins+where+' ORDER BY '+orders[sort]+' LIMIT ? OFFSET ?',params+[limit,max(0,offset)])]
+            return {'items':[self.brief(uid,mid) for mid in ids],'total':total,'offset':max(0,offset),'limit':limit}
+
     def search(self, uid, query, project='', limit=8):
         terms=search_terms(query)
         if not terms:return []
@@ -190,4 +208,9 @@ class Store:
             sources=db.execute('SELECT count(*) FROM sources WHERE user_id=?',(uid,)).fetchone()[0]
             captured=db.execute("SELECT max(created) FROM sources WHERE user_id=? AND kind='conversation'",(uid,)).fetchone()[0]
             labels={r['project']:r['label'] for r in db.execute('SELECT project,label FROM project_labels WHERE user_id=?',(uid,))}
-        return {'counts':counts,'projects':projects,'project_names':labels,'jobs':jobs,'sources':sources,'last_captured_at':captured}
+            scope_counts={'global':{},'project':{}};project_counts={}
+            for row in db.execute('SELECT project,status,count(*) n FROM memories WHERE user_id=? GROUP BY project,status',(uid,)):
+                scope='project' if row['project'] else 'global'
+                scope_counts[scope][row['status']]=scope_counts[scope].get(row['status'],0)+row['n']
+                if row['project']:project_counts.setdefault(row['project'],{})[row['status']]=row['n']
+        return {'scope_counts':scope_counts,'project_counts':project_counts,'counts':counts,'projects':projects,'project_names':labels,'jobs':jobs,'sources':sources,'last_captured_at':captured}

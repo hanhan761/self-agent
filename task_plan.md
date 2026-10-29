@@ -100,3 +100,9 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 3. Validate isolated chronological history and improve ingestion/reconciliation with mature components — complete.
 4. Absorb validated historical knowledge into the live local space — complete; 635 items, 104 completed jobs; current counts 581 active / 25 candidate / 18 superseded.
 5. Verify real-corpus relevance, privacy/lifecycle/restore and management — complete; 156 tests, actual browser/MCP, 12 independent paraphrases + 12 literal lookups + 12 scope checks + 4 unrelated queries. Private report remains on D; source synchronization follows.
+
+## Reviewable knowledge management and global-scope correction — 2026-10-29
+1. Compare primary mature-product sources and reproduce current navigation/count/scope issues — complete.
+2. Add clear global/project/status views, exact counts, compact review list, side inspector and version-safe bulk organization — complete.
+3. Audit grounded reusable preferences/procedures, correct overly restrictive scope with reversible changes, improve future classification — complete; 33 reviewed adjustments, 3 equivalent merges, 65 active global records.
+4. Verify owner isolation, lifecycle, real browser desktop/mobile and live recall; back up and update D installation — complete; 164 tests, actual native/browser/MCP and full restore. Source synchronization follows.

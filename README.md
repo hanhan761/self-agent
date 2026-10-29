@@ -18,7 +18,7 @@
 
 > 请按 https://github.com/hanhan761/self-agent/blob/main/docs/local-connect-agent.md 在当前设备安装 Self Agent 本地版，自动接入 Codex 和 Claude Code、保留其他设置，并验证连接；需要我完成校园登录或 Hook 信任审核时请如实说明。
 
-管理内容时，从 **开始菜单 → Self Agent** 打开本机管理页，会自动登录。默认显示全部项目的记忆，可以搜索、写入、编辑或移出；来源、历史、导入和备份放在次级入口。有效的用户记忆默认自动加入，不必逐条审核。
+管理内容时，从 **开始菜单 → Self Agent** 打开本机管理页，会自动登录。左侧切换全局或项目，中间筛选分组，右侧查看原话与历史；可以批量调整适用范围、写入、编辑或移出，导入和备份放在次级入口。有效的用户记忆默认自动加入，不必逐条审核。
 
 首版支持 Windows 10/11 x64，面向本机 Codex 和 Claude Code。无需独立显卡、Docker、WSL、Node 或用户预装 Python；校园登录仍需要可达的交晓智服务。缺少 WebView2 时安装器按需准备微软官方运行时。
 
@@ -49,6 +49,8 @@
 - **FastAPI、MCP SDK、SQLite、jieba、cryptography**：本地服务、智能体工具、权威记录、中文关键词与加密备份。
 
 Self Agent 保留来源校验、项目隔离、记忆生命周期和客户端适配。现有 SQLite 是唯一权威内容库；MCP Memory Service 数据库是可重建检索投影，替换本地模式中的 Mem0/Qdrant，不另建一套权威记忆。详见 [复用边界与架构](docs/local-design.md)。Obsidian 不是运行依赖。
+
+审阅与整理方式参考 Notion、Obsidian 等成熟知识库的属性视图与侧边详情，详见 [知识库管理](docs/review-management.md)。
 
 ## 数据与运行边界
 

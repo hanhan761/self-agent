@@ -212,6 +212,22 @@ class Lifecycle:
             self.record(uid,'restore',before)
         return self.store.get(uid,mid)
 
+    def bulk(self,uid,items,action,project=None):
+        """Validate the entire selection before one atomic manual organization operation."""
+        if not items or len(items)>100 or len({x['id'] for x in items})!=len(items):raise ValueError('请选择不同的记忆，最多100条')
+        if action not in ('move','forget','activate') or action=='move' and project is None:raise ValueError('无效整理操作')
+        with self.store.tx():
+            for item in items:
+                old=self.store.get(uid,item['id'])
+                if old['version']!=item['version']:raise ValueError('选择的记忆已有更新，请刷新后重试')
+                if old['status']=='forgotten' or action=='move' and old['status'] not in ('active','candidate'):raise ValueError('已移出或历史记忆不能直接移动或加入')
+                if action=='activate' and old['status']!='candidate':raise ValueError('仅待确认记忆可加入')
+            result=[]
+            for item in items:
+                values={'project':project} if action=='move' else {'status':'forgotten' if action=='forget' else 'active'}
+                result.append(self.patch(uid,item['id'],version=item['version'],**values))
+            return {'updated':len(result),'items':result}
+
     def patch(self,uid,mid,*,version,content=None,status=None,project=None,valid_until=None,deadline_set=False):
         with self.store.tx() as db:
             old=self.store.get(uid,mid)

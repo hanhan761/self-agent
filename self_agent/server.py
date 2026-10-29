@@ -41,6 +41,20 @@ class MemoryPatch(BaseModel):
     project:str|None=Field(default=None,max_length=200)
     valid_until:float|None=None
 
+class BulkItem(BaseModel):
+    id:str=Field(min_length=1,max_length=100)
+    version:int=Field(ge=1)
+
+class BulkMemoryInput(BaseModel):
+    items:list[BulkItem]=Field(min_length=1,max_length=100)
+    action:str=Field(pattern='^(move|forget|activate)$')
+    project:str|None=Field(default=None,max_length=200)
+
+class ProjectName(BaseModel):
+    project:str=Field(min_length=1,max_length=200)
+    label:str=Field(min_length=1,max_length=120)
+
+
 class Ingest(BaseModel):
     content:str=Field(default='',max_length=120000)
     messages:list[dict]|None=Field(default=None,max_length=2000)
@@ -279,10 +293,10 @@ def create_app(config=None,*,start_worker=True,provider=None):
         return result
 
     @app.get('/v1/memories')
-    def listing(project:str|None=None,status:str='active',offset:int=0,q:str='',user=Depends(current)):
+    def listing(project:str|None=None,status:str='active',offset:int=0,q:str='',kind:str='',sort:str='updated',limit:int=100,exact_project:bool=False,user=Depends(current)):
         if len(q)>4000:raise ValueError('搜索内容过长')
         store.lifecycle.expire(user['id'])
-        return {'items':store.listing(user['id'],project=project,status=status,offset=offset,query=q,details=False)}
+        return store.memory_page(user['id'],project=project,status=status,offset=offset,query=q,kind=kind,sort=sort,limit=limit,exact_project=exact_project)
 
     @app.get('/v1/context')
     def context(project:str='',limit:int=8,user=Depends(current)):
@@ -293,6 +307,20 @@ def create_app(config=None,*,start_worker=True,provider=None):
     def search(q:str,project:str='',limit:int=8,user=Depends(current)):
         if not q.strip() or len(q)>4000 or not 1<=limit<=30:raise ValueError('无效检索参数')
         return {'items':engine.search(user['id'],q,project,limit)}
+
+    @app.post('/v1/memories/bulk')
+    def organize(body:BulkMemoryInput,user=Depends(current)):
+        writable(32768*len(body.items))
+        return store.lifecycle.bulk(user['id'],[item.model_dump() for item in body.items],body.action,body.project)
+
+    @app.patch('/v1/projects/name')
+    def name_project(body:ProjectName,user=Depends(current)):
+        label=body.label.strip()
+        if not label:raise ValueError('项目名称不能为空')
+        with store.tx() as db:
+            if not db.execute('SELECT 1 FROM memories WHERE user_id=? AND project=? LIMIT 1',(user['id'],body.project)).fetchone():raise KeyError(body.project)
+            db.execute('INSERT OR REPLACE INTO project_labels VALUES(?,?,?)',(user['id'],body.project,label))
+        return {'project':body.project,'label':label}
 
     @app.get('/v1/memories/{mid}')
     def get_memory(mid:str,user=Depends(current)):return store.get(user['id'],mid)

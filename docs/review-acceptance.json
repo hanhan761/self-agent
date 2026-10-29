@@ -1,0 +1,138 @@
+{
+  "date": "2026-10-29",
+  "automated_tests": 164,
+  "scope_review": {
+    "evaluated_preferences_and_procedures": 275,
+    "validated_verdicts": 274,
+    "unresolved": 1,
+    "reclassified": 33,
+    "equivalent_merges": 3,
+    "global_before_curation": 35,
+    "global_after_curation": 65,
+    "original_times_preserved": true,
+    "unselected_model_suggestions_not_applied": true
+  },
+  "native_scope_cases": {
+    "cases": [
+      {
+        "case": "mixed_future_favicon",
+        "passed": true,
+        "scopes": [
+          "personal"
+        ]
+      },
+      {
+        "case": "word_method",
+        "passed": true,
+        "scopes": [
+          "personal"
+        ]
+      },
+      {
+        "case": "background_method",
+        "passed": true,
+        "scopes": [
+          "personal"
+        ]
+      },
+      {
+        "case": "single_diagram",
+        "passed": true,
+        "scopes": []
+      },
+      {
+        "case": "single_authorization",
+        "passed": true,
+        "scopes": []
+      },
+      {
+        "case": "single_capacity",
+        "passed": true,
+        "scopes": []
+      }
+    ],
+    "passed": true,
+    "native_calls": 6,
+    "validation_note": "A one-off diagram may be omitted; the negative control requires no global promotion. Original complete replies retained; no generation repeated."
+  },
+  "isolated_browser": {
+    "passed": true,
+    "global_count_matches": true,
+    "exact_project_view": true,
+    "inspector_evidence": true,
+    "bulk_move": true,
+    "edit_forget_restore": true,
+    "project_rename": true,
+    "type_filter": true,
+    "desktop_and_mobile": true,
+    "page_errors": []
+  },
+  "live_browser": {
+    "passed": true,
+    "global_navigation_and_evidence": true,
+    "desktop_and_mobile": true
+  },
+  "live_mcp": {
+    "passed": true,
+    "tools": 5,
+    "transport": "pythonw stdio"
+  },
+  "live_real_corpus": {
+    "history_active": 568,
+    "all_counts": {
+      "candidate": 30,
+      "active": 595,
+      "superseded": 23
+    },
+    "history_evidence_integrity": true,
+    "paraphrase_top5": {
+      "passed": 12,
+      "total": 12,
+      "missing_cases": 0
+    },
+    "literal_top5": {
+      "passed": 12,
+      "total": 12
+    },
+    "cross_project": {
+      "passed": 12,
+      "total": 12
+    },
+    "unrelated": {
+      "passed": 4,
+      "total": 4
+    },
+    "search_ms": {
+      "p50": 427.20610000833403,
+      "p95": 1013.1005000148434,
+      "queries": 40
+    },
+    "restore": {
+      "passed": true,
+      "restored": 648,
+      "source_count": 128,
+      "evidence_count": 697,
+      "labels": 44,
+      "owner_isolation": true,
+      "forgotten_not_resurrected": true
+    },
+    "projection": {
+      "semantic": true,
+      "state": "",
+      "keyword": true,
+      "reranking": true,
+      "rerank_state": ""
+    }
+  },
+  "installed": {
+    "verified_files": 5660,
+    "changed_files": 7,
+    "client_settings_unchanged": 8
+  },
+  "limitations": [
+    "Small manually selected relevance sample; no universal recall guarantee",
+    "One existing entry lacked a valid audit quote and was left unchanged",
+    "Private source data, screenshots, receipts and database copies remain outside Git",
+    "Public local-v0.2.1 installer was not rebuilt"
+  ]
+}
