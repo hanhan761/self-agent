@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS external_identities(provider TEXT NOT NULL, identity_
 CREATE TABLE IF NOT EXISTS session_identities(session_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS api_key_identities(key_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS pairing_codes(hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), name TEXT NOT NULL, expires REAL NOT NULL, provider TEXT NOT NULL, identity_hash TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS versions_first_active ON versions(memory_id,changed) WHERE status='active';
 CREATE INDEX IF NOT EXISTS memory_owner ON memories(user_id,project,status);
 CREATE INDEX IF NOT EXISTS memory_listing ON memories(user_id,status,updated DESC);
 CREATE INDEX IF NOT EXISTS memory_project_listing ON memories(user_id,project,status,updated DESC);
@@ -199,6 +200,32 @@ class Store:
             if not db.execute('SELECT id FROM sources WHERE id=? AND user_id=?',(source_id,uid)).fetchone():raise KeyError(source_id)
             db.execute('INSERT INTO jobs(id,user_id,source_id,state,created) VALUES(?,?,?,?,?)',(jid,uid,source_id,'pending',time.time()))
         return jid
+
+    def daily_growth(self,uid,days=14,*,now=None):
+        """Count each owned record once, on its first confirmed activation day."""
+        from datetime import datetime,timedelta,timezone
+        if not 1<=days<=90:raise ValueError('统计范围需为1至90天')
+        zone=timezone(timedelta(hours=8));current=datetime.fromtimestamp(time.time() if now is None else now,zone)
+        first=current.date()-timedelta(days=days-1)
+        start=datetime.combine(first,datetime.min.time(),zone).timestamp()
+        end=current.timestamp()
+        sql="""WITH admissions AS (
+            SELECT m.source_id,(SELECT v.changed FROM versions v
+                WHERE v.memory_id=m.id AND v.status='active' ORDER BY v.changed LIMIT 1) admitted
+            FROM memories m WHERE m.user_id=?
+        )
+        SELECT date(a.admitted,'unixepoch','+8 hours') day,
+            CASE WHEN s.kind IN ('history','restored') OR substr(s.external_id,1,8)='history:' THEN 1 ELSE 0 END imported,
+            count(*) n
+        FROM admissions a LEFT JOIN sources s ON s.id=a.source_id AND s.user_id=?
+        WHERE a.admitted>=? AND a.admitted<=? GROUP BY day,imported"""
+        with self.tx() as db:rows=list(db.execute(sql,(uid,uid,start,end)))
+        by_day={r['day']:{'regular':0,'imported':0} for r in rows}
+        for row in rows:by_day[row['day']]['imported' if row['imported'] else 'regular']=row['n']
+        items=[{'date':(first+timedelta(days=n)).isoformat(),**by_day.get((first+timedelta(days=n)).isoformat(),{'regular':0,'imported':0})} for n in range(days)]
+        return {'timezone':'Asia/Shanghai','metric':'first_activation','items':items,
+                'totals':{key:sum(row[key] for row in items) for key in ('regular','imported')},
+                'today':{key:items[-1][key] for key in ('regular','imported')}}
 
     def overview(self, uid):
         with self.tx() as db:

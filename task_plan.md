@@ -110,3 +110,8 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 ## Flexible review panel — 2026-10-29
 1. Remove permanently reserved detail space; open on selection, close/toggle, resize and expand reading — implemented.
 2. Verify responsive browser interactions and safe asynchronous close; update only static assets — complete; actual isolated/live browser checks passed, 5660 files verified, eight settings unchanged, no service restart. Source synchronization follows.
+
+## Daily memory growth overview — 2026-10-29
+1. Define first-activation counting and import separation; verify owner/timezone/lifecycle tests — complete; five targeted cases, 169 total tests passed.
+2. Add a local pinned Chart.js bar chart, 14/30-day windows, accessible daily numbers and compact overview display — complete; actual desktop/mobile, tooltip, late-response navigation and zero-data checks passed.
+3. Verify API/privacy/restore, actual desktop/mobile chart rendering; back up and update D runtime — complete; 5664 verified files, eight settings unchanged, live independent count check/browser/MCP passed. Source synchronization follows.

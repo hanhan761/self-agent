@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-29",
+  "automated_tests": 169,
+  "library": {
+    "version": "4.6.1",
+    "source": "https://registry.npmjs.org/chart.js/-/chart.js-4.6.1.tgz",
+    "package_integrity": "sha512-hJyniucsFmq//EvXYvJ6c6mahPoI3kaxdjVH8awTaJ/fDNWeSqqqArixMJWkWNN6fcYvPU3HneSANFNYtRi61g==",
+    "bundle_sha256": "87364cc2b2a76a6684929e7d6b80b18a897794db38400caff1fcf1791c6925d2",
+    "bundle_bytes": 210082,
+    "bundled_color_version": "0.3.2"
+  },
+  "browser": {
+    "passed": true,
+    "chartjs_version": "4.6.1",
+    "real_data_matches_api": true,
+    "daily_and_imported_separate": true,
+    "periods": [
+      14,
+      30
+    ],
+    "hover_tooltip": true,
+    "collapse_and_responsive": true,
+    "accessible_daily_table": true,
+    "empty_library_zeroes": true,
+    "cached_refresh": true,
+    "late_response_navigation": true,
+    "outside_requests": [],
+    "page_errors": []
+  },
+  "live_statistics": {
+    "passed": true,
+    "days": 30,
+    "timezone": "Asia/Shanghai",
+    "http_ms": 65.11,
+    "independent_first_activation_check": true
+  },
+  "live_browser": {
+    "passed": true,
+    "automatic_local_login": true,
+    "no_remote_pairing_ui": true,
+    "desktop_and_mobile_no_overflow": true,
+    "page_errors": []
+  },
+  "live_mcp": {
+    "passed": true,
+    "tools": 5
+  },
+  "installed": {
+    "verified_files": 5664,
+    "changed_files": 9,
+    "settings_unchanged": 8
+  },
+  "limits": [
+    "First-activation counts are historical additions, not current active count or net growth",
+    "Backfill and backup restore are separated from ordinary capture",
+    "Private screenshots, databases and receipts remain on D outside Git",
+    "Public local-v0.2.1 installer not rebuilt"
+  ],
+  "fonts": {
+    "chinese": "Microsoft YaHei",
+    "latin_and_numbers": "Arial"
+  }
+}

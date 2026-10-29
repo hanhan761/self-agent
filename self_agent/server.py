@@ -292,6 +292,10 @@ def create_app(config=None,*,start_worker=True,provider=None):
                           'reranking':getattr(engine.index,'reranker',None) is not None,'rerank_state':getattr(engine.index,'rerank_error','not_applicable')}
         return result
 
+    @app.get('/v1/stats/daily')
+    def daily_growth(days:int=14,user=Depends(current)):
+        return store.daily_growth(user['id'],days)
+
     @app.get('/v1/memories')
     def listing(project:str|None=None,status:str='active',offset:int=0,q:str='',kind:str='',sort:str='updated',limit:int=100,exact_project:bool=False,user=Depends(current)):
         if len(q)>4000:raise ValueError('搜索内容过长')

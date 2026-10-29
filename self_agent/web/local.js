@@ -82,6 +82,7 @@ async function refresh(){
  const gb=n=>(n/1024**3).toFixed(2);
  $('#service-info').textContent='共 '+info.sources+' 条原始资料 · '+(info.search.semantic?'本机语义检索已开启':'关键词检索可用')+(info.capacity?' · 已用 '+gb(info.capacity.bytes_used)+' GB，磁盘剩余 '+gb(info.capacity.disk_free_bytes)+' GB':'');
  renderJobs();
+ window.memoryGrowth.refresh(status==='active'&&scope==='*',JSON.stringify(info.counts));
 }
 function renderJobs(){
  const pending=(info.capacity?.pending_jobs||0)+(info.capacity?.capture_batches||0);$('#activity-label').textContent=pending?pending+' 项正在整理':'已同步';const list=$('#job-list');list.replaceChildren();
