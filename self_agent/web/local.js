@@ -56,7 +56,7 @@ function renderMemories(){
    const copy=element('button',undefined,'memory-copy');copy.type='button';copy.setAttribute('aria-label','查看记忆：'+m.title);
    const content=element('p',m.content);copy.append(content);const meta=element('div',undefined,'memory-meta');
    meta.append(element('span',labels[m.kind]||'记忆','kind-label'),element('span',projectName(m.project)),element('time',time(m.observed_at||m.created)));
-   copy.append(meta);copy.onclick=()=>action(()=>openDetail(m.id));row.append(check,copy,element('span','›','row-chevron'));list.append(row);
+   copy.append(meta);copy.onclick=()=>{if(currentMemory?.id===m.id)closeReview();else action(()=>openDetail(m.id));};row.append(check,copy,element('span','›','row-chevron'));list.append(row);
   }
  }
  if(!items.length){const empty=element('div',undefined,'empty');empty.append(element('h2',$('#query').value?'没有找到相关记忆':'这里暂时没有内容'),element('p','可以调整范围或筛选，也可以手动添加。'));list.append(empty);}
@@ -88,9 +88,9 @@ function renderJobs(){
  const names={done:'整理完成',pending:'等待整理',running:'正在整理',history_pending:'历史资料等待整理',history_running:'历史资料正在整理',failed:'未能完成整理',uncertain:'处理结果待核实'};
  for(const job of (info.jobs||[]).slice(0,6)){const row=element('div',undefined,'job-row');row.append(element('span',names[job.state]||job.state),element('span',time(job.created),'muted'));if(['failed','uncertain'].includes(job.state))row.append(button('重试',async()=>{if(job.state==='uncertain'&&!confirm('上次结果不明，重试可能再次消耗模型额度。继续？'))return;await api('/v1/jobs/'+job.id+'/retry',{method:'POST',body:'{}'});await refresh();}));list.append(row);}
 }
-function closeReview(){currentMemory=null;$('#review-detail').hidden=true;$('#review-empty').hidden=false;$('#review-panel').classList.remove('is-open');document.querySelectorAll('.is-current').forEach(n=>n.classList.remove('is-current'));}
+function closeReview(){resizingReview=false;document.body.classList.remove('resizing-review');detailRevision++;currentMemory=null;$('#review-detail').hidden=true;$('#review-panel').hidden=true;$('#review-panel').classList.remove('is-open');$('#app').classList.remove('review-open','review-expanded');$('#expand-review').textContent='展开阅读';$('#expand-review').setAttribute('aria-expanded','false');document.querySelectorAll('.is-current').forEach(n=>n.classList.remove('is-current'));}
 async function openDetail(id){
- const m=await api('/v1/memories/'+id);currentMemory=m;$('#review-empty').hidden=true;$('#review-detail').hidden=false;$('#review-panel').classList.add('is-open');
+ const request=++detailRevision,m=await api('/v1/memories/'+id);if(request!==detailRevision)return;currentMemory=m;$('#review-detail').hidden=false;$('#review-panel').hidden=false;$('#review-panel').classList.add('is-open');$('#app').classList.add('review-open');
  $('#detail-title').textContent=m.topic||labels[m.kind]+'记忆';$('#detail-content').textContent=m.content;
  const properties=$('#detail-properties');properties.replaceChildren();for(const [k,v] of [['类型',labels[m.kind]],['范围',projectName(m.project)],['状态',states[m.status]],['陈述时间',time(m.observed_at)]])properties.append(element('dt',k),element('dd',v));
  const reasons={unvalidated_reconciliation:'原话已保留，但与旧记忆的关系尚未确认。',historical_one_off:'历史中的一次性操作，不作为未来的通用授权。',historical_scope_uncertain:'适用范围尚不明确，暂不自动使用。',conflict:'与已有记忆存在冲突，暂不自动使用。'};
@@ -136,5 +136,45 @@ $('#source-form').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.
 $('#export').onclick=()=>action(async()=>{const data=await api('/v1/export'),url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})),link=element('a');link.href=url;link.download='self-agent-'+new Date().toISOString().slice(0,10)+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 $('#restore').onclick=()=>action(async()=>{const file=$('#restore-file').files[0];if(!file)throw Error('请先选择备份文件');if(file.size>8*1024*1024)throw Error('备份超过 8 MiB');const data=JSON.parse(await file.text());if(!confirm('将备份合并到当前知识库，已有内容会保留。继续？'))return;const result=await api('/v1/restore',{method:'POST',body:JSON.stringify(data)});toast('已合并 '+result.restored+' 条记忆');await refresh(true);});
 
+
+let detailRevision=0,preferredReviewWidth=380;
+try{const saved=Number(localStorage.getItem('self-agent.review-width'));if(saved>=300&&saved<=720)preferredReviewWidth=saved;}catch{}
+function setReviewWidth(width,persist=false){
+ const maximum=Math.max(300,Math.min(720,innerWidth-618));
+ const value=Math.round(Math.max(300,Math.min(maximum,width)));
+ $('#app').style.setProperty('--review-width',value+'px');
+ $('#review-resizer').setAttribute('aria-valuenow',String(value));
+ $('#review-resizer').setAttribute('aria-valuemax',String(maximum));
+ if(persist){preferredReviewWidth=value;try{localStorage.setItem('self-agent.review-width',String(value));}catch{}}
+ return value;
+}
+function expandReview(){
+ const expanded=$('#app').classList.toggle('review-expanded');
+ $('#expand-review').textContent=expanded?'恢复侧栏':'展开阅读';
+ $('#expand-review').setAttribute('aria-expanded',String(expanded));
+}
+const reviewResizer=$('#review-resizer');
+let resizingReview=false;
+reviewResizer.onpointerdown=e=>{
+ if(e.button!==0)return;e.preventDefault();resizingReview=true;
+ reviewResizer.setPointerCapture(e.pointerId);document.body.classList.add('resizing-review');
+};
+reviewResizer.onpointermove=e=>{if(resizingReview)setReviewWidth(innerWidth-e.clientX);};
+function finishReviewResize(e){
+ if(!resizingReview)return;resizingReview=false;document.body.classList.remove('resizing-review');
+ setReviewWidth(parseFloat($('#app').style.getPropertyValue('--review-width')),true);
+ if(reviewResizer.hasPointerCapture(e.pointerId))reviewResizer.releasePointerCapture(e.pointerId);
+}
+reviewResizer.onlostpointercapture=finishReviewResize;reviewResizer.onpointerup=finishReviewResize;reviewResizer.onpointercancel=finishReviewResize;
+reviewResizer.onkeydown=e=>{
+ const current=Number(reviewResizer.getAttribute('aria-valuenow'));
+ const values={ArrowLeft:current+24,ArrowRight:current-24,Home:300,End:720};
+ if(!(e.key in values))return;e.preventDefault();setReviewWidth(values[e.key],true);
+};
+$('#expand-review').onclick=expandReview;
+addEventListener('resize',()=>setReviewWidth(preferredReviewWidth));
+setReviewWidth(preferredReviewWidth);
+
+reviewResizer.ondblclick=()=>setReviewWidth(380,true);
 async function init(){try{await api('/api/me');$('#app').hidden=false;$('#locked').hidden=true;await refresh();}catch(error){if(!$('#app').hidden)toast(error.message);else lock();}}
 setInterval(()=>{if(!$('#app').hidden&&document.visibilityState==='visible'&&!document.querySelector('dialog[open]'))action(()=>refresh());},5000);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]'))closeReview();});init();

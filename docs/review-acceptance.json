@@ -134,5 +134,21 @@
     "One existing entry lacked a valid audit quote and was left unchanged",
     "Private source data, screenshots, receipts and database copies remain outside Git",
     "Public local-v0.2.1 installer was not rebuilt"
-  ]
+  ],
+  "flexible_detail_panel": {
+    "passed": true,
+    "closed_uses_full_width": true,
+    "selection_toggle": true,
+    "pointer_resize": true,
+    "keyboard_resize": true,
+    "double_click_reset": true,
+    "width_preference_only_persisted": true,
+    "expanded_reading": true,
+    "escape_and_late_response": true,
+    "tablet_mobile_drawer": true,
+    "page_errors": [],
+    "live_verified": true,
+    "static_assets_updated": 3,
+    "service_restart": false
+  }
 }

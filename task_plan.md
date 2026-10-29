@@ -106,3 +106,7 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 2. Add clear global/project/status views, exact counts, compact review list, side inspector and version-safe bulk organization — complete.
 3. Audit grounded reusable preferences/procedures, correct overly restrictive scope with reversible changes, improve future classification — complete; 33 reviewed adjustments, 3 equivalent merges, 65 active global records.
 4. Verify owner isolation, lifecycle, real browser desktop/mobile and live recall; back up and update D installation — complete; 164 tests, actual native/browser/MCP and full restore. Source synchronization follows.
+
+## Flexible review panel — 2026-10-29
+1. Remove permanently reserved detail space; open on selection, close/toggle, resize and expand reading — implemented.
+2. Verify responsive browser interactions and safe asynchronous close; update only static assets — complete; actual isolated/live browser checks passed, 5660 files verified, eight settings unchanged, no service restart. Source synchronization follows.
