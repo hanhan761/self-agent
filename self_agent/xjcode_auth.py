@@ -45,7 +45,7 @@ def credentials(config):
     return Credentials(value['access_key'],value['secret'],value['account_id'],route['workspace_id'],'discovered')
 
 
-def discover(home,workspace=None,endpoint='http://ai.xjtu.edu.cn:30040/',model='qwen3.8-max'):
+def discover(home,workspace=None,endpoint='http://ai.xjtu.edu.cn:30040/',model='qwen3.7-max'):
     """Read-only model discovery in the explicit existing/personal workspace. No key/workspace creation."""
     from .xjtu_top import TopClient
     value=identity(home)

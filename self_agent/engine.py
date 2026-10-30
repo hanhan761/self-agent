@@ -73,7 +73,7 @@ class Engine:
         if hasattr(self.provider,'preflight'):
             try:self.provider.preflight()
             except Exception as exc:
-                with self.store.tx() as db:db.execute('UPDATE jobs SET next_at=?,error=? WHERE id=?',(time.time()+30,type(exc).__name__,job['id']))
+                with self.store.tx() as db:db.execute('UPDATE jobs SET next_at=?,error=? WHERE id=?',(time.time()+30,getattr(exc,'reason',type(exc).__name__),job['id']))
                 return False
         with self.store.tx() as db:
             if not db.execute("UPDATE jobs SET state=?,attempts=attempts+1 WHERE id=? AND state=?",(running,job['id'],pending)).rowcount:return False

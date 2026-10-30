@@ -232,6 +232,7 @@ class Store:
             counts={r['status']:r['n'] for r in db.execute('SELECT status,count(*) n FROM memories WHERE user_id=? GROUP BY status',(uid,))}
             projects=[r[0] for r in db.execute('SELECT DISTINCT project FROM memories WHERE user_id=? AND project!=? ORDER BY project',(uid,''))]
             jobs=[dict(r) for r in db.execute('SELECT id,state,attempts,error,created FROM jobs WHERE user_id=? ORDER BY created DESC LIMIT 30',(uid,))]
+            job_counts={r['state']:r['n'] for r in db.execute('SELECT state,count(*) n FROM jobs WHERE user_id=? GROUP BY state',(uid,))}
             sources=db.execute('SELECT count(*) FROM sources WHERE user_id=?',(uid,)).fetchone()[0]
             captured=db.execute("SELECT max(created) FROM sources WHERE user_id=? AND kind='conversation'",(uid,)).fetchone()[0]
             labels={r['project']:r['label'] for r in db.execute('SELECT project,label FROM project_labels WHERE user_id=?',(uid,))}
@@ -240,4 +241,4 @@ class Store:
                 scope='project' if row['project'] else 'global'
                 scope_counts[scope][row['status']]=scope_counts[scope].get(row['status'],0)+row['n']
                 if row['project']:project_counts.setdefault(row['project'],{})[row['status']]=row['n']
-        return {'scope_counts':scope_counts,'project_counts':project_counts,'counts':counts,'projects':projects,'project_names':labels,'jobs':jobs,'sources':sources,'last_captured_at':captured}
+        return {'scope_counts':scope_counts,'project_counts':project_counts,'counts':counts,'projects':projects,'project_names':labels,'jobs':jobs,'job_counts':job_counts,'sources':sources,'last_captured_at':captured}

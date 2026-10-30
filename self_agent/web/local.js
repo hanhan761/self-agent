@@ -77,15 +77,19 @@ async function refresh(){
  if(generation!==revision)return;info=overview;items=loaded;updateProjects();renderMemories();
  $('#memory-count').textContent='共 '+first.total+' 条 · 已载入 '+items.length+' 条';$('#load-more').hidden=items.length>=first.total;
  $('#capture-status').textContent=info.last_captured_at?'最近采集 '+time(info.last_captured_at):'等待下一次对话采集';
- const pressure=info.capacity?.blocked_reason,preparing=info.processing?.waiting_for_index;
- $('#service-state').textContent=pressure?'资源保护中':preparing?'正在准备索引':info.provider.configured?'自动记忆已开启':'等待后台整理';
+ const pressure=info.capacity?.blocked_reason,preparing=info.processing?.waiting_for_index,health=info.provider.health||{},blocked=health.state==='blocked';
+ const problems=(info.job_counts?.failed||0)+(info.job_counts?.uncertain||0);
+ $('#service-state').textContent=pressure?'资源保护中':blocked?'自动整理暂停':preparing?'正在准备索引':problems?'部分资料待处理':info.provider.configured?'自动记忆已开启':'等待后台整理';
+ const notice=$('#processing-notice');notice.hidden=!blocked&&!problems;
+ const reasons={model_not_granted:'当前模型 '+info.provider.model+' 暂无使用权限',catalog_unavailable:'暂时无法核验模型权限',provider_request_failed:'模型请求失败，正在重新核验'};
+ notice.textContent=(blocked?(reasons[health.reason]||'自动整理暂时不可用')+'。新对话仍会保存在本机，等待恢复后整理。':'')+(problems?'有 '+problems+' 份资料未完成整理，可在下方“后台动态”查看。':'');
  const gb=n=>(n/1024**3).toFixed(2);
  $('#service-info').textContent='共 '+info.sources+' 条原始资料 · '+(info.search.semantic?'本机语义检索已开启':'关键词检索可用')+(info.capacity?' · 已用 '+gb(info.capacity.bytes_used)+' GB，磁盘剩余 '+gb(info.capacity.disk_free_bytes)+' GB':'');
  renderJobs();
  window.memoryGrowth.refresh(status==='active'&&scope==='*',JSON.stringify(info.counts));
 }
 function renderJobs(){
- const pending=(info.capacity?.pending_jobs||0)+(info.capacity?.capture_batches||0);$('#activity-label').textContent=pending?pending+' 项正在整理':'已同步';const list=$('#job-list');list.replaceChildren();
+ const pending=(info.capacity?.pending_jobs||0)+(info.capacity?.capture_batches||0);const problems=(info.job_counts?.failed||0)+(info.job_counts?.uncertain||0);$('#activity-label').textContent=problems?problems+' 项未完成'+(pending?' · '+pending+' 项等待整理':''):pending?pending+' 项正在整理':info.provider.health?.state==='blocked'?'整理暂停':'已同步';const list=$('#job-list');list.replaceChildren();
  const names={done:'整理完成',pending:'等待整理',running:'正在整理',history_pending:'历史资料等待整理',history_running:'历史资料正在整理',failed:'未能完成整理',uncertain:'处理结果待核实'};
  for(const job of (info.jobs||[]).slice(0,6)){const row=element('div',undefined,'job-row');row.append(element('span',names[job.state]||job.state),element('span',time(job.created),'muted'));if(['failed','uncertain'].includes(job.state))row.append(button('重试',async()=>{if(job.state==='uncertain'&&!confirm('上次结果不明，重试可能再次消耗模型额度。继续？'))return;await api('/v1/jobs/'+job.id+'/retry',{method:'POST',body:'{}'});await refresh();}));list.append(row);}
 }

@@ -115,3 +115,8 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 1. Define first-activation counting and import separation; verify owner/timezone/lifecycle tests — complete; five targeted cases, 169 total tests passed.
 2. Add a local pinned Chart.js bar chart, 14/30-day windows, accessible daily numbers and compact overview display — complete; actual desktop/mobile, tooltip, late-response navigation and zero-data checks passed.
 3. Verify API/privacy/restore, actual desktop/mobile chart rendering; back up and update D runtime — complete; 5664 verified files, eight settings unchanged, live independent count check/browser/MCP passed. Source synchronization follows.
+
+## Automatic learning interruption — 2026-10-30
+1. Verify collection, first-activation stats and actual native model permission — confirmed selected model grant revoked; captured sources preserved.
+2. Apply explicitly authorized qwen3.7-max, refresh cached grants, preserve pending jobs, expose truthful owner-scoped backlog and provider health — implemented; regression checks underway.
+3. Back up and replay only today's authorized unfinished jobs with extraction checkpoints, evidence checks, scope serialization and finite budgets; verify actual additions and browser.

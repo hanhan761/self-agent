@@ -32,7 +32,7 @@ class Config:
     embedding_dims: int = 1024
     xjtu_credentials: str = ''
     xjtu_native_config: str = ''
-    xjtu_model: str = 'qwen3.8-max'
+    xjtu_model: str = 'qwen3.7-max'
     xjtu_url: str = 'http://ai.xjtu.edu.cn:30040/'
     allow_campus_http: bool = False
     max_data_bytes: int = 2 * 1024**3

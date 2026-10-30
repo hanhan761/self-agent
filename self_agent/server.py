@@ -287,7 +287,7 @@ def create_app(config=None,*,start_worker=True,provider=None):
             result['capacity']=Capacity(config).status()
             result['processing']={'scheduler':'APScheduler 3.11.3','waiting_for_index':not getattr(engine.index,'ready_for_reconcile',True),'last_error':engine.worker_error}
         result['local']=config.local
-        result['provider']={'configured':engine.provider.configured,'model':config.xjtu_model,'name':'交晓智原生 API'}
+        result['provider']={'configured':engine.provider.configured,'model':config.xjtu_model,'name':'交晓智原生 API','health':getattr(engine.provider,'health',{'state':'unchecked','reason':'','checked_at':None})}
         result['search']={'semantic':engine.index.memory is not None and not engine.index.error,'state':engine.index.error,'keyword':True,
                           'reranking':getattr(engine.index,'reranker',None) is not None,'rerank_state':getattr(engine.index,'rerank_error','not_applicable')}
         return result
