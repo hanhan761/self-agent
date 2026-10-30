@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-30",
+  "automated_tests": {
+    "passed": 174,
+    "windows_utf8": true
+  },
+  "native": {
+    "model": "qwen3.7-max",
+    "explicit_user_selection": true,
+    "actual_source_extraction_validated": true,
+    "confirmed_deadline_repair_validated": true,
+    "implicit_fallback": false
+  },
+  "recovery": {
+    "explicit_same_day_authorization": true,
+    "all_selected_jobs_done": true,
+    "original_sources_unchanged": true,
+    "prior_versions_preserved": true,
+    "previous_completed_jobs_preserved": true,
+    "forgotten_records_preserved": true,
+    "canonical_integrity_passed": true,
+    "real_recall_samples_passed": true,
+    "private_data_committed": false
+  },
+  "browser": {
+    "actual_local_login": true,
+    "desktop_and_mobile": true,
+    "daily_chart_matches_real_api": true,
+    "unresolved_jobs_visible": true,
+    "revoked_grant_display_path": true,
+    "script_errors": []
+  },
+  "mcp": {
+    "actual_stdio_pythonw": true,
+    "tools": 5,
+    "search_passed": true
+  },
+  "installation": {
+    "manifest_files_verified": 5664,
+    "other_client_settings_preserved": true,
+    "public_installer_rebuilt": false
+  }
+}

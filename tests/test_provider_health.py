@@ -81,3 +81,17 @@ def test_overview_reports_all_failed_jobs_only_for_owner(tmp_path):
         assert data['job_counts']=={'uncertain':35}
         assert len(data['jobs'])==30
         assert data['provider']['health']['reason']=='model_not_granted'
+
+def test_overview_keeps_old_failures_visible_after_new_successes(tmp_path):
+    from self_agent.store import Store
+    from self_agent.auth import Auth
+    store=Store(tmp_path/'db');uid=Auth(store).create_user('owner','long-safe-password')
+    sid,_=store.source(uid,'p','failed','old unresolved source');jid=store.enqueue(uid,sid)
+    store.db.execute("update jobs set state='uncertain',created=1 where id=?",(jid,))
+    for i in range(35):
+        sid,_=store.source(uid,'p','new',str(i));done=store.enqueue(uid,sid)
+        store.db.execute("update jobs set state='done' where id=?",(done,))
+    data=store.overview(uid)
+    assert data['jobs'][0]['id']==jid
+    assert data['job_counts']['uncertain']==1
+    store.close()

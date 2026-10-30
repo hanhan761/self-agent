@@ -120,3 +120,5 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 1. Verify collection, first-activation stats and actual native model permission — confirmed selected model grant revoked; captured sources preserved.
 2. Apply explicitly authorized qwen3.7-max, refresh cached grants, preserve pending jobs, expose truthful owner-scoped backlog and provider health — implemented; regression checks underway.
 3. Back up and replay only today's authorized unfinished jobs with extraction checkpoints, evidence checks, scope serialization and finite budgets; verify actual additions and browser.
+4. Same-day recovery complete: authorized sources processed with checkpointed validated outputs; canonical integrity, old versions/completed jobs, forgotten state and real recall verified. Follow-up failure-list visibility regression fixed; 174 tests and installed five-tool MCP pass. Final browser and source synchronization finish the record.
+5. Final actual browser and authenticated API/recall checks complete; privacy-safe acceptance summary recorded. Source synchronization follows.

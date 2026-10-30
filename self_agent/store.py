@@ -231,7 +231,7 @@ class Store:
         with self.tx() as db:
             counts={r['status']:r['n'] for r in db.execute('SELECT status,count(*) n FROM memories WHERE user_id=? GROUP BY status',(uid,))}
             projects=[r[0] for r in db.execute('SELECT DISTINCT project FROM memories WHERE user_id=? AND project!=? ORDER BY project',(uid,''))]
-            jobs=[dict(r) for r in db.execute('SELECT id,state,attempts,error,created FROM jobs WHERE user_id=? ORDER BY created DESC LIMIT 30',(uid,))]
+            jobs=[dict(r) for r in db.execute("SELECT id,state,attempts,error,created FROM jobs WHERE user_id=? ORDER BY CASE WHEN state IN ('failed','uncertain') THEN 0 WHEN state IN ('pending','running','history_pending','history_running') THEN 1 ELSE 2 END,created DESC LIMIT 30",(uid,))]
             job_counts={r['state']:r['n'] for r in db.execute('SELECT state,count(*) n FROM jobs WHERE user_id=? GROUP BY state',(uid,))}
             sources=db.execute('SELECT count(*) FROM sources WHERE user_id=?',(uid,)).fetchone()[0]
             captured=db.execute("SELECT max(created) FROM sources WHERE user_id=? AND kind='conversation'",(uid,)).fetchone()[0]
