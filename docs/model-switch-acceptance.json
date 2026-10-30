@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-30",
+  "automated_tests": {
+    "passed": 197
+  },
+  "policy": {
+    "provider": "native XJTU",
+    "same_authorized_account": true,
+    "preferred": "qwen3.7-max",
+    "backups": [
+      "qwen-plus-latest"
+    ],
+    "explicit_pool_only": true,
+    "output_token_caps_set": false,
+    "cooldowns_persisted": true,
+    "ambiguous_chat_replayed": false,
+    "quality_retry_bounded": true
+  },
+  "native_verification": {
+    "backup": "qwen-plus-latest",
+    "actual_completion_and_source_validation": true,
+    "preferred_grant_loss_simulated_in_isolated_catalog": true,
+    "other_evaluated_models": [
+      {
+        "model": "qwen3-max",
+        "actual_http_status": 500,
+        "default_enabled": false
+      },
+      {
+        "model": "GLM-4.7",
+        "actual_http_status": 500,
+        "default_enabled": false
+      }
+    ],
+    "production_outage_injected": false,
+    "canonical_qa_writes": false
+  },
+  "browser": {
+    "actual_app_and_auth": true,
+    "simulated_status_paths": [
+      "fallback",
+      "all_cooling_down",
+      "no_grants",
+      "preferred_revalidating",
+      "preferred_validated"
+    ],
+    "actual_model_pool_and_daily_chart": true,
+    "desktop_mobile_passed": true,
+    "page_errors": [],
+    "external_frontend_requests": []
+  },
+  "mcp": {
+    "actual_pythonw_stdio": true,
+    "tools": 5,
+    "recall_passed": true
+  },
+  "integrity": {
+    "canonical_sqlite_passed": true,
+    "prior_versions_preserved": true,
+    "previous_done_jobs_preserved": true,
+    "forgotten_state_preserved": true,
+    "other_settings_preserved": true
+  },
+  "deployment": {
+    "verified_files": 5665,
+    "dependencies_installed_on_target": false,
+    "public_installer_rebuilt": false
+  }
+}

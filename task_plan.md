@@ -122,3 +122,9 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 3. Back up and replay only today's authorized unfinished jobs with extraction checkpoints, evidence checks, scope serialization and finite budgets; verify actual additions and browser.
 4. Same-day recovery complete: authorized sources processed with checkpointed validated outputs; canonical integrity, old versions/completed jobs, forgotten state and real recall verified. Follow-up failure-list visibility regression fixed; 174 tests and installed five-tool MCP pass. Final browser and source synchronization finish the record.
 5. Final actual browser and authenticated API/recall checks complete; privacy-safe acceptance summary recorded. Source synchronization follows.
+
+## Authorized automatic model switching — 2026-10-30
+1. Replace the single-model-only policy with an explicit same-account native pool, bounded safe failover, cooldown and restart-safe health — implemented.
+2. Display current model, grant/cooldown/verification status and switch history; preserve unknown results and warn visibly — implemented; browser verification follows.
+3. Verify actual authorized backups, meaningful failure/lifecycle/restore regressions, checksum release and current-device update — in progress. Actual qwen-plus-latest extraction passed; other evaluated candidates did not pass and are excluded from the default pool.
+4. Completed: same-account explicit pool enabled on current device; actual healthy backup admitted, unavailable candidates excluded, 197 tests and actual browser/MCP/integrity checks passed. Runtime manifest verified; source synchronization follows.

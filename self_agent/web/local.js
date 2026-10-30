@@ -79,17 +79,33 @@ async function refresh(){
  $('#capture-status').textContent=info.last_captured_at?'最近采集 '+time(info.last_captured_at):'等待下一次对话采集';
  const pressure=info.capacity?.blocked_reason,preparing=info.processing?.waiting_for_index,health=info.provider.health||{},blocked=health.state==='blocked';
  const problems=(info.job_counts?.failed||0)+(info.job_counts?.uncertain||0);
- $('#service-state').textContent=pressure?'资源保护中':blocked?'自动整理暂停':preparing?'正在准备索引':problems?'部分资料待处理':info.provider.configured?'自动记忆已开启':'等待后台整理';
- const notice=$('#processing-notice');notice.hidden=!blocked&&!problems;
- const reasons={model_not_granted:'当前模型 '+info.provider.model+' 暂无使用权限',catalog_unavailable:'暂时无法核验模型权限',provider_request_failed:'模型请求失败，正在重新核验'};
- notice.textContent=(blocked?(reasons[health.reason]||'自动整理暂时不可用')+'。新对话仍会保存在本机，等待恢复后整理。':'')+(problems?'有 '+problems+' 份资料未完成整理，可在下方“后台动态”查看。':'');
+ $('#service-state').textContent=pressure?'资源保护中':blocked?'自动整理暂停':preparing?'正在准备索引':health.state==='fallback'?'备用模型工作中':problems?'部分资料待处理':info.provider.configured?'自动记忆已开启':'等待后台整理';
+ renderModelStatus(problems);
  const gb=n=>(n/1024**3).toFixed(2);
  $('#service-info').textContent='共 '+info.sources+' 条原始资料 · '+(info.search.semantic?'本机语义检索已开启':'关键词检索可用')+(info.capacity?' · 已用 '+gb(info.capacity.bytes_used)+' GB，磁盘剩余 '+gb(info.capacity.disk_free_bytes)+' GB':'');
  renderJobs();
  window.memoryGrowth.refresh(status==='active'&&scope==='*',JSON.stringify(info.counts));
 }
+function renderModelStatus(problems){
+ const h=info.provider.health||{},blocked=h.state==='blocked',fallback=h.state==='fallback',active=h.active_model||info.provider.model;
+ const reasons={model_not_granted:'候选模型均未获使用权限',models_cooling_down:'候选模型都在故障冷却中',account_unavailable:'当前交晓智账号暂时无法调用',catalog_unavailable:'暂时无法核验模型权限',provider_request_failed:'模型请求失败，正在重新选择',rate_limited:'当前模型限流，正在重新选择',model_quality_rejected:'模型回复未通过校验，正在重新选择',native_account_not_allowed:'登录账号已变化，需要重新确认授权',xjcode_login_required:'需要重新登录交晓智',xjcode_login_unavailable:'本机校园登录暂不可用'};
+ const last=(h.switches||[]).at(-1),retryingPreferred=!blocked&&!fallback&&last?.reason==='preferred_recovered'&&Date.now()/1000-last.at<3600;
+ const confirmed=(h.models||[]).some(m=>m.name===active&&m.last_validated>=last?.at);
+ const notice=$('#processing-notice');notice.hidden=!blocked&&!fallback&&!problems&&!retryingPreferred;notice.dataset.tone=retryingPreferred&&confirmed&&!problems?'success':'warning';
+ notice.textContent=(blocked?(reasons[h.reason]||'自动整理暂时不可用')+'。新对话继续保存在本机，待可用模型恢复后整理。':fallback?'优先模型 '+h.preferred_model+' 暂不可用，已自动切换到备用模型 '+active+'。':retryingPreferred?(confirmed?'已恢复使用优先模型 ':'正在重新验证优先模型 ')+active+'。':'')+(problems?'有 '+problems+' 份资料未完成整理，可在下方“后台动态”查看。':'');
+ $('#model-status-summary').textContent=(blocked?'整理暂停 · '+(h.active_model?'上次模型 ':'优先模型 '):'当前模型 ')+active+' · '+(h.auto_switch?'自动切换已开启':'固定模型')+(h.checked_at?' · 最近检查 '+time(h.checked_at):'');
+ const body=$('#model-status-body');body.replaceChildren();
+ for(const m of h.models||[]){
+  const row=element('div',undefined,'model-status-row'),cooling=m.cooldown_until>Date.now()/1000;
+  row.append(element('strong',m.name),element('span',m.name===active?(blocked?'上次选择':'当前使用'):m.name===h.preferred_model?'优先':'备用','muted'));
+  row.append(element('span',cooling?'冷却至 '+time(m.cooldown_until):!m.granted?'暂无权限':m.last_validated&&m.last_validated>=(m.last_failure||0)?'最近校验 '+time(m.last_validated):'已授权，等待实际回复验证','muted'));
+  body.append(row);
+ }
+ const labels={model_not_granted:'权限不可用',provider_request_failed:'请求失败',rate_limited:'限流',model_quality_rejected:'回复未通过校验',preferred_recovered:'重新尝试优先模型'};
+ for(const e of (h.switches||[]).slice(-5).reverse())body.append(element('p',time(e.at)+' · '+e.from+' → '+e.to+' · '+(labels[e.reason]||'模型切换'),'model-switch-event'));
+}
 function renderJobs(){
- const pending=(info.capacity?.pending_jobs||0)+(info.capacity?.capture_batches||0);const problems=(info.job_counts?.failed||0)+(info.job_counts?.uncertain||0);$('#activity-label').textContent=problems?problems+' 项未完成'+(pending?' · '+pending+' 项等待整理':''):pending?pending+' 项正在整理':info.provider.health?.state==='blocked'?'整理暂停':'已同步';const list=$('#job-list');list.replaceChildren();
+ const pending=(info.capacity?.pending_jobs||0)+(info.capacity?.capture_batches||0);const problems=(info.job_counts?.failed||0)+(info.job_counts?.uncertain||0);$('#activity-label').textContent=problems?problems+' 项未完成'+(pending?' · '+pending+' 项'+(info.provider.health?.state==='blocked'?'等待模型恢复':'等待整理'):''):pending?pending+' 项'+(info.provider.health?.state==='blocked'?'等待模型恢复':'正在整理'):info.provider.health?.state==='blocked'?'整理暂停':info.provider.health?.state==='fallback'?'备用模型工作中':'已同步';const list=$('#job-list');list.replaceChildren();
  const names={done:'整理完成',pending:'等待整理',running:'正在整理',history_pending:'历史资料等待整理',history_running:'历史资料正在整理',failed:'未能完成整理',uncertain:'处理结果待核实'};
  for(const job of (info.jobs||[]).slice(0,12)){const row=element('div',undefined,'job-row');row.append(element('span',names[job.state]||job.state),element('span',time(job.created),'muted'));if(['failed','uncertain'].includes(job.state))row.append(button('重试',async()=>{if(job.state==='uncertain'&&!confirm('上次结果不明，重试可能再次消耗模型额度。继续？'))return;await api('/v1/jobs/'+job.id+'/retry',{method:'POST',body:'{}'});await refresh();}));list.append(row);}
 }
@@ -183,3 +199,5 @@ setReviewWidth(preferredReviewWidth);
 reviewResizer.ondblclick=()=>setReviewWidth(380,true);
 async function init(){try{await api('/api/me');$('#app').hidden=false;$('#locked').hidden=true;await refresh();}catch(error){if(!$('#app').hidden)toast(error.message);else lock();}}
 setInterval(()=>{if(!$('#app').hidden&&document.visibilityState==='visible'&&!document.querySelector('dialog[open]'))action(()=>refresh());},5000);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('dialog[open]'))closeReview();});init();
+
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!$('#app').hidden)action(()=>refresh());});

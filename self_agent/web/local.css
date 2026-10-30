@@ -61,3 +61,7 @@ dialog{border:1px solid #dfe5d8;border-radius:14px;padding:26px;width:min(560px,
 @media(max-width:680px){.growth-panel{padding:14px 12px;margin-bottom:20px}.growth-panel>summary{gap:10px}.growth-panel h2{font-size:12px}.growth-panel #growth-summary{font-size:10px}.growth-controls{gap:9px;font-size:10px}.growth-controls select{font-size:10px}.growth-plot{height:150px}.growth-bottom{gap:12px}}
 
 .processing-notice{margin:0 0 18px;padding:12px 15px;border:1px solid #e6d6af;border-radius:8px;background:#fffaf0;color:#775d25;font-size:12px;line-height:1.8;overflow-wrap:anywhere}
+
+.model-status-panel{font-size:11px;color:#718166;margin:0 0 16px;overflow-wrap:anywhere}.model-status-panel>summary{cursor:pointer;line-height:1.8}.model-status-row{display:flex;flex-wrap:wrap;gap:7px 16px;padding:10px 0;border-bottom:1px solid #edf0e7}.model-status-row strong{color:#394d3e;font-weight:500;min-width:135px}.model-switch-event{font-size:10px;line-height:1.8}
+
+.processing-notice[data-tone="success"]{background:#f3f8ef;border-color:#d8e5cf;color:#477451}

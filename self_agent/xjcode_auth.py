@@ -45,15 +45,16 @@ def credentials(config):
     return Credentials(value['access_key'],value['secret'],value['account_id'],route['workspace_id'],'discovered')
 
 
-def discover(home,workspace=None,endpoint='http://ai.xjtu.edu.cn:30040/',model='qwen3.7-max'):
+def discover(home,workspace=None,endpoint='http://ai.xjtu.edu.cn:30040/',model='qwen3.7-max',backup_models=()):
     """Read-only model discovery in the explicit existing/personal workspace. No key/workspace creation."""
     from .xjtu_top import TopClient
     value=identity(home)
     workspace=workspace or 'personal-'+value['account_id']
     creds=Credentials(value['access_key'],value['secret'],value['account_id'],workspace,'discovered')
     routes=TopClient(creds,url=endpoint,allow_campus_http=True).list_text_models()
-    if model not in routes:raise RuntimeError('requested_model_not_granted')
-    return {'workspace_id':workspace,'model':model,
+    selected=next((n for n in (model,*backup_models) if n in routes),None)
+    if not selected:raise RuntimeError('requested_model_not_granted')
+    return {'workspace_id':workspace,'model':selected,
             'account_fingerprint':hashlib.sha256(value['account_id'].encode()).hexdigest()[:12]}
 
 

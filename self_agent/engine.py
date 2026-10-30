@@ -1,7 +1,7 @@
 import threading
 import time
 from .index import Index
-from .provider import XjtuProvider,ReconciliationError
+from .provider import XjtuProvider,ReconciliationError,ExtractionError,ProviderUnavailable
 from .capacity import Capacity,Backpressure
 from .xjtu_top import TopError
 
@@ -51,6 +51,8 @@ class Engine:
 
     def _generation_tick(self):
         if self.stop_event.is_set():return
+        if hasattr(self.provider,'check_health'):self.provider.check_health()
+        if getattr(self.provider,'health',{}).get('state')=='blocked':return
         if not self.process_one():self.process_cleanup_one()
 
     def _index_tick(self):
@@ -103,9 +105,16 @@ class Engine:
             with self.store.tx() as db:db.execute("UPDATE jobs SET state='done',error='' WHERE id=?",(job['id'],))
         except (Backpressure,ReconciliationUnavailable) as exc:
             with self.store.tx() as db:db.execute("UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?",(pending,time.time()+5,getattr(exc,'reason','index_unavailable'),job['id']))
+        except ProviderUnavailable as exc:
+            with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?',(pending,time.time()+30,exc.reason,job['id']))
+        except (ExtractionError,ReconciliationError) as exc:
+            retry=not history and job['attempts']<1 and getattr(self.provider,'retry_after_quality_failure',lambda:False)()
+            with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?',('pending' if retry else 'failed',time.time()+1,'model_quality_retry' if retry else type(exc).__name__,job['id']))
         except TopError as exc:
             receipt=exc.rate_receipt or {}
-            if history and receipt.get('limited'):
+            if self.config.xjtu_auto_switch and exc.action in ('CreateConversation','BatchCreateMessages') and exc.http_status in (401,403):
+                with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?',(pending,time.time()+60,'account_unavailable',job['id']))
+            elif history and receipt.get('limited'):
                 with self.store.tx() as db:db.execute('UPDATE jobs SET state=?,next_at=?,error=? WHERE id=?',(pending,time.time()+max(65,receipt.get('retry_after_seconds',0)),'native_rate_limited',job['id']))
             else:
                 with self.store.tx() as db:db.execute("UPDATE jobs SET state='uncertain',error=? WHERE id=?",(type(exc).__name__,job['id']))

@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import hmac
+import http.client
 import json
 import os
 import re
@@ -188,7 +189,9 @@ class TopClient:
         with self._request(action, payload) as response:
             if response.status != 200:
                 raise TopError("XJTU TOP request failed")
-            raw = response.read(MAX_JSON + 1)
+            try:raw = response.read(MAX_JSON + 1)
+            except (OSError,http.client.HTTPException):
+                raise TopError('XJTU TOP response interrupted',action=action) from None
         if len(raw) > MAX_JSON:
             raise TopError("XJTU TOP response too large")
         try:
@@ -214,7 +217,9 @@ class TopClient:
         total = 0
         finished = False
         while True:
-            line = response.readline(65537)
+            try:line = response.readline(65537)
+            except (OSError,http.client.HTTPException):
+                raise TopError('XJTU Chat stream interrupted',action='Chat') from None
             if not line:
                 break
             total += len(line)

@@ -41,14 +41,50 @@ class XjtuProvider:
         self._route_lock=threading.RLock()
         self._catalog_until=0
         self._catalog_error=None
-        self.health={'state':'unchecked','reason':'','checked_at':None}
+        from .model_pool import ModelPool
+        self.pool=ModelPool(config)
+        self._routes={}
+        self._context=threading.local()
+        self.health={'state':'unchecked','reason':'','checked_at':None,**self.pool.status(self._routes)}
 
     @property
     def configured(self):
         return bool(self.config.xjtu_credentials or self.config.xjtu_native_config or self.config.xjcode_home)
 
+    def _health(self,state,reason=''):
+        current=self.pool.models.get(self.pool.active,{})
+        if state in ('ready','fallback') and current.get('until',0)>time.time():state,reason='blocked',current.get('reason','provider_request_failed')
+        self.health={'state':state,'reason':reason,'checked_at':time.time(),**self.pool.status(self._routes)}
+
     def preflight(self):
-        self._client()
+        try:self._client()
+        except Exception as exc:
+            reason=getattr(exc,'reason',None) or (str(exc) if str(exc) in ('native_account_not_allowed','xjcode_login_required','xjcode_login_unavailable') else 'catalog_unavailable')
+            self._health('blocked',reason)
+            raise
+
+    def check_health(self):
+        if not self.configured or time.monotonic()<self._catalog_until:return
+        try:self.preflight()
+        except Exception:self._catalog_until=max(self._catalog_until,time.monotonic()+30)
+
+    def reject_quality(self):
+        model=getattr(self._context,'model',None)
+        if self.pool.enabled and model:
+            with self._route_lock:
+                self.pool.failure(model,'model_quality_rejected')
+                self._catalog_until=0;self._catalog_error=None;self._route=None
+                self._health('blocked','model_quality_rejected')
+
+    def retry_after_quality_failure(self):
+        return self.pool.enabled and any(n in self._routes and self.pool.models.get(n,{}).get('until',0)<=time.time() for n in self.pool.names)
+
+    def validated(self):
+        model=getattr(self._context,'model',None)
+        if model:
+            with self._route_lock:
+                self.pool.success(model,validated=True)
+                self._health('fallback' if self.pool.active!=self.config.xjtu_model else 'ready')
 
     def _client(self):
         if not self.configured:raise RuntimeError('provider_not_configured')
@@ -71,34 +107,50 @@ class XjtuProvider:
         options={'observer':self.observer} if self.observer else {}
         client=TopClient(creds,url=endpoint,allow_campus_http=self.config.allow_campus_http,**options)
         with self._route_lock:
+            self.pool.bind(creds,endpoint)
             now=time.monotonic()
             if now>=self._catalog_until:
                 self._route=None
                 try:
-                    routes=client.list_text_models()
-                    if self.config.xjtu_model not in routes:raise ProviderUnavailable('model_not_granted')
-                    self._route=routes[self.config.xjtu_model]
+                    self._routes=client.list_text_models()
+                    route,reason=self.pool.select(self._routes)
+                    if route is None:raise ProviderUnavailable(reason)
+                    self._route=route
                 except Exception as exc:
                     reason=getattr(exc,'reason','catalog_unavailable')
                     self._catalog_error=ProviderUnavailable(reason)
                     self._catalog_until=now+30
-                    self.health={'state':'blocked','reason':reason,'checked_at':time.time()}
+                    self._health('blocked',reason)
                     raise self._catalog_error from None
                 self._catalog_error=None;self._catalog_until=now+60
-                self.health={'state':'ready','reason':'','checked_at':time.time()}
+                self._health('fallback' if self._route.public_id!=self.config.xjtu_model else 'ready')
             if self._catalog_error:raise ProviderUnavailable(self._catalog_error.reason)
         return client
 
     def complete(self, messages):
-        with self._route_lock:
-            client=self._client();route=self._route
         prompt=json.dumps(messages,ensure_ascii=False,separators=(',',':'))
-        try:return client.complete(prompt,model=route)
-        except TopError:
+        for attempt in range(len(self.pool.names)):
             with self._route_lock:
-                self._route=None;self._catalog_until=0
-                self.health={'state':'blocked','reason':'provider_request_failed','checked_at':time.time()}
-            raise
+                client=self._client();route=self._route
+            try:answer=client.complete(prompt,model=route)
+            except TopError as exc:
+                receipt=exc.rate_receipt or {}
+                auth=exc.http_status in (401,403)
+                reason=('account_unavailable' if auth else 'rate_limited' if receipt.get('limited') else 'provider_request_failed') if self.pool.enabled else 'provider_request_failed'
+                safe=not auth and (exc.action in ('CreateConversation','BatchCreateMessages') or receipt.get('limited'))
+                with self._route_lock:
+                    self.pool.failure(route.public_id,reason,receipt.get('retry_after_seconds',0))
+                    self._route=None;self._catalog_until=0;self._catalog_error=None
+                    self._health('blocked',reason)
+                if self.pool.enabled and safe:
+                    if attempt+1<len(self.pool.names):continue
+                    raise ProviderUnavailable('models_cooling_down') from None
+                raise
+            with self._route_lock:
+                self._context.model=route.public_id
+                self.pool.success(route.public_id)
+                self._health('fallback' if self.pool.active!=self.config.xjtu_model else 'ready')
+            return answer
 
     def extract(self, text):
         messages=[{'role':'system','content':EXTRACTION},{'role':'user','content':text}]
@@ -106,10 +158,13 @@ class XjtuProvider:
         for attempt in range(2):
             response=self.complete(messages)
             try:
-                return validate_extraction(text,response,require_scope=True)
+                result=validate_extraction(text,response,require_scope=True)
+                self.validated()
+                return result
             except (ValueError,TypeError) as exc:
                 if attempt:
                     self._save_failed_extraction(text,response)
+                    self.reject_quality()
                     raise ExtractionError('extraction_validation_failed') from None
                 messages += [
                     {'role':'assistant','content':response},
@@ -128,9 +183,14 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
 忘记或被替代的等义内容仍需指出 equivalent，不可借改写绕过遗忘。supersedes 的 evidence 必须来自 new.evidence 原文并明确表达改变。'''},{'role':'user','content':json.dumps(payload,ensure_ascii=False)}]
         for attempt in range(2):
             reply=self.complete(messages)
-            try:return self._validate_reconciliation(item,candidates,parse_json(reply))
+            try:
+                result=self._validate_reconciliation(item,candidates,parse_json(reply))
+                self.validated()
+                return result
             except (ValueError,TypeError):
-                if attempt:raise ReconciliationError('reconciliation_validation_failed') from None
+                if attempt:
+                    self.reject_quality()
+                    raise ReconciliationError('reconciliation_validation_failed') from None
                 messages += [{'role':'assistant','content':reply},{'role':'user','content':'上一条结构或范围校验未通过。target_id 只能是相同 project 的已有记忆；overrides_id 仅用于项目例外引用个人默认，其他情况必须 null。supersedes 的 evidence 必须是 new.evidence 的连续原文片段。重新输出严格 JSON。'}]
 
     def _validate_reconciliation(self,item,candidates,result):

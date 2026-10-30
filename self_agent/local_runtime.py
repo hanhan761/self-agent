@@ -110,7 +110,8 @@ def setup_local(client='auto',home=None,data_dir=None,model_cache=None,xjcode_ho
         config=Config(data_dir=root,local=True,local_instance_id=secrets.token_hex(16),
                       local_started_at=time.time(),index_backend='mcp-memory-service',semantic=True,
                       embedding_model='paraphrase-multilingual-MiniLM-L12-v2',embedding_dims=384,
-                      model_cache=str(model_cache),max_data_bytes=8*1024**3)
+                      model_cache=str(model_cache),max_data_bytes=8*1024**3,
+                      xjtu_auto_switch=True,xjtu_backup_models=('qwen-plus-latest',))
         # The selected port is verified free; the server still fails closed on a later collision.
         with socket.socket() as port:
             try:port.bind(('127.0.0.1',8766));config.port=8766
@@ -134,7 +135,7 @@ def setup_local(client='auto',home=None,data_dir=None,model_cache=None,xjcode_ho
     auth_home=Path(xjcode_home or home/'.xjcode').resolve()
     if (auth_home/'credentials.dpapi').exists():
         from .xjcode_auth import discover
-        route=discover(auth_home,model=config.xjtu_model)
+        route=discover(auth_home,model=config.xjtu_model,backup_models=config.xjtu_backup_models if config.xjtu_auto_switch else ())
         if config.xjtu_account_fingerprint and route['account_fingerprint']!=config.xjtu_account_fingerprint:
             raise RuntimeError('native_account_changed')
         config.xjcode_home=str(auth_home)
@@ -145,7 +146,7 @@ def setup_local(client='auto',home=None,data_dir=None,model_cache=None,xjcode_ho
         from .xjcode_auth import login,discover
         helper=bundle/'bin/xjcode-login.exe'
         login(auth_home,helper)
-        route=discover(auth_home,model=config.xjtu_model)
+        route=discover(auth_home,model=config.xjtu_model,backup_models=config.xjtu_backup_models if config.xjtu_auto_switch else ())
         config.xjcode_home=str(auth_home);config.xjtu_account_fingerprint=route['account_fingerprint']
         config.allow_campus_http=True
         atomic_json(root/'native-route.json',route)
