@@ -204,3 +204,36 @@ def test_prepare_response_read_timeout_is_safe_prechat_failure(monkeypatch):
     monkeypatch.setattr(c,'_request',lambda *a:Broken())
     with pytest.raises(TopError) as exc:c.call('CreateConversation',{})
     assert exc.value.action=='CreateConversation' and 'private' not in str(exc.value)
+
+def test_sole_granted_model_quality_rejection_must_not_pause_pool(routing):
+    from self_agent.provider import ExtractionError
+    p,c,clock,_=routing;c.granted={'backup'};c.responses['backup']='invalid completed output'
+    with pytest.raises(ExtractionError):p.extract('[{"role":"user","content":"用户原文"}]')
+    p.preflight()
+    assert p.health['state']!='blocked'
+    assert p.health['models'][1]['quality_warning']
+    c.responses['backup']='{"memories":[]}';clock[0]+=1
+    assert p.extract('[{"role":"user","content":"用户原文"}]')==[]
+    assert not p.health['models'][1]['quality_warning']
+
+def test_legacy_quality_cooldown_migrates_without_bypassing_real_outage(routing):
+    p,c,clock,_=routing;c.granted={'backup'};p.preflight()
+    p.pool.models['backup']={'until':clock[0]+900,'reason':'model_quality_rejected','failures':12,'last_failure':clock[0],'last_validated':clock[0]-60}
+    p.pool.save()
+    restored=XjtuProvider(p.config);restored.preflight()
+    assert restored.health['active_model']=='backup'
+    assert restored.health['models'][1]['quality_warning']
+    assert restored.pool.models['backup']['until']==0
+    restored.pool.failure('backup','rate_limited',600)
+    blocked=XjtuProvider(p.config)
+    with pytest.raises(ProviderUnavailable,match='models_cooling_down'):blocked.preflight()
+
+def test_quality_failure_may_choose_other_model_without_disabling_first(routing):
+    from self_agent.provider import ExtractionError
+    p,c,clock,_=routing;c.responses['primary']='invalid completed output'
+    with pytest.raises(ExtractionError):p.extract('[{"role":"user","content":"用户原文"}]')
+    assert p.pool.models['primary'].get('until',0)<=clock[0]
+    assert p.pool.models['primary']['quality_issues']==1
+    assert p.extract('[{"role":"user","content":"用户原文"}]')==[]
+    assert c.calls==['primary','primary','backup']
+    assert p.health['switches'][-1]['reason']=='model_quality_rejected'

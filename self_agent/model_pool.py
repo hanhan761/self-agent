@@ -23,18 +23,26 @@ class ModelPool:
             if self.path.stat().st_size>65536:raise ValueError('oversized')
             value=json.loads(self.path.read_text('utf8'))
             if value.get('scope')!=scope:return
-            self.models={n:{k:v for k,v in m.items() if k in ('until','failures','reason','last_success','last_validated','last_failure')}
+            self.models={n:{k:v for k,v in m.items() if k in ('until','failures','reason','last_success','last_validated','last_failure','quality_issues','last_quality_failure','quality_code')}
                          for n,m in value.get('models',{}).items() if n in self.names and isinstance(m,dict)}
             for m in self.models.values():
-                for key in ('until','last_success','last_validated','last_failure'):
+                for key in ('until','last_success','last_validated','last_failure','last_quality_failure'):
                     if key in m and (not isinstance(m[key],(int,float)) or not math.isfinite(m[key]) or m[key]<0):raise ValueError('invalid_timestamp')
                 if not isinstance(m.get('failures',0),int) or not 0<=m.get('failures',0)<=100:raise ValueError('invalid_failures')
                 if m.get('reason','') not in ('','provider_request_failed','model_quality_rejected','account_unavailable','rate_limited'):raise ValueError('invalid_reason')
+            migrated=False
+            for m in self.models.values():
+                if not isinstance(m.get('quality_issues',0),int) or not 0<=m.get('quality_issues',0)<=10000:raise ValueError('invalid_quality_count')
+                if not isinstance(m.get('quality_code',''),str) or not re.fullmatch(r'[a-z_]{0,80}',m.get('quality_code','')):raise ValueError('invalid_quality_code')
+                if m.get('reason')=='model_quality_rejected':
+                    m.update(quality_issues=max(1,m.get('quality_issues',m.get('failures',1))),last_quality_failure=m.get('last_failure',time.time()),quality_code='validation_failed',until=0,failures=0,reason='')
+                    m.pop('last_failure',None);migrated=True
             self.active=value.get('active') if value.get('active') in self.names else None
             self.events=[{'at':e['at'],'from':e['from'],'to':e['to'],'reason':e['reason']} for e in value.get('events',[])[-10:]
                          if isinstance(e,dict) and e.get('from') in self.names and e.get('to') in self.names and e.get('reason') in ('model_not_granted','provider_request_failed','rate_limited','model_quality_rejected','preferred_recovered') and isinstance(e.get('at'),(float,int)) and math.isfinite(e['at']) and e['at']>=0]
             self.account_until=value.get('account_until',0)
             if not isinstance(self.account_until,(int,float)) or not math.isfinite(self.account_until) or self.account_until<0:raise ValueError('invalid_account_cooldown')
+            if migrated:self.save()
         except (ValueError,TypeError,KeyError,AttributeError,OSError):
             self.models={};self.events=[];self.active=None;self.account_until=0
 
@@ -42,22 +50,30 @@ class ModelPool:
         if self.enabled and self.scope:
             atomic_json(self.path,{'scope':self.scope,'active':self.active,'models':self.models,'events':self.events[-10:],'account_until':self.account_until})
 
-    def select(self,routes):
+    def select(self,routes,avoid=()):
         now=time.time()
         if self.account_until>now:return None,'account_unavailable'
         available=[n for n in self.names if n in routes]
         choices=[n for n in available if not self.enabled or self.models.get(n,{}).get('until',0)<=now]
         if not choices:return None,'models_cooling_down' if available else 'model_not_granted'
-        selected=choices[0]
+        selected=next((n for n in choices if n not in avoid),choices[0])
         if self.active and self.active!=selected:
-            reason='preferred_recovered' if selected==self.names[0] else self.models.get(self.active,{}).get('reason') or 'model_not_granted'
+            reason='model_quality_rejected' if self.active in avoid else 'preferred_recovered' if selected==self.names[0] else 'model_not_granted' if self.active not in routes else self.models.get(self.active,{}).get('reason') or 'model_not_granted'
             self.events.append({'at':now,'from':self.active,'to':selected,'reason':reason});self.events=self.events[-10:]
         changed=self.active!=selected;self.active=selected
         if changed:self.save()
         return routes[selected],''
 
+    def quality_failure(self,model,code='validation_failed'):
+        if not self.enabled:return
+        old=self.models.get(model,{})
+        self.models[model]={**old,'quality_issues':min(10000,old.get('quality_issues',0)+1),
+                            'last_quality_failure':time.time(),'quality_code':code}
+        self.save()
+
     def failure(self,model,reason='provider_request_failed',retry_after=0):
         if not self.enabled:return
+        if reason=='model_quality_rejected':return self.quality_failure(model)
         now=time.time();old=self.models.get(model,{});failures=min(100,old.get('failures',0)+1)
         self.models[model]={**old,'failures':failures,'reason':reason,'last_failure':now,'until':now+max(min(900,60*2**min(failures-1,4)),retry_after)}
         if reason=='account_unavailable':self.account_until=now+60
@@ -67,7 +83,7 @@ class ModelPool:
         old=self.models.get(model,{})
         # A late in-flight success must not cancel a newer cooldown.
         self.models[model]={**old,'last_success':time.time()}
-        if validated:self.models[model]['last_validated']=time.time()
+        if validated:self.models[model].update(last_validated=time.time(),quality_issues=0,quality_code='')
         if old.get('until',0)<=time.time() and (validated or old.get('reason')!='model_quality_rejected'):self.models[model].update(until=0,reason='',failures=0)
         self.save()
 
@@ -76,5 +92,8 @@ class ModelPool:
         return {'auto_switch':self.enabled,'preferred_model':self.names[0],'active_model':self.active,
                 'models':[{'name':n,'granted':n in routes,'cooldown_until':self.models.get(n,{}).get('until',0),
                            'reason':self.models.get(n,{}).get('reason',''),'last_success':self.models.get(n,{}).get('last_success'),
-                           'last_validated':self.models.get(n,{}).get('last_validated'),'last_failure':self.models.get(n,{}).get('last_failure')} for n in self.names],
+                           'last_validated':self.models.get(n,{}).get('last_validated'),'last_failure':self.models.get(n,{}).get('last_failure'),
+                           'quality_warning':self.models.get(n,{}).get('last_quality_failure',0)>self.models.get(n,{}).get('last_validated',0),
+                           'quality_issues':self.models.get(n,{}).get('quality_issues',0),'quality_code':self.models.get(n,{}).get('quality_code',''),
+                           'last_quality_failure':self.models.get(n,{}).get('last_quality_failure')} for n in self.names],
                 'switches':list(self.events[-10:])}

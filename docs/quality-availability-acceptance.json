@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-01",
+  "bug": "per-source validation rejection incorrectly paused the only granted model",
+  "automated_tests": {
+    "passed": 200,
+    "red_regressions_reproduced": true
+  },
+  "native": {
+    "preferred": "qwen3.7-max",
+    "preferred_current_grant": false,
+    "backup": "qwen-plus-latest",
+    "backup_actual_complete_extraction": true,
+    "backup_validation_passed": true,
+    "seconds": 3.53,
+    "canonical_qa_writes": false
+  },
+  "fix": {
+    "quality_rejection_does_not_open_transport_circuit": true,
+    "legacy_quality_cooldown_migrated": true,
+    "true_rate_and_account_cooldowns_preserved": true,
+    "one_operation_alternative_preserved": true,
+    "invalid_memories_still_rejected": true,
+    "exact_validation_feedback": true
+  },
+  "browser": {
+    "actual_local_app": true,
+    "quality_warning_without_global_pause": true,
+    "task_validation_error_visible": true,
+    "other_fault_recovery_paths_passed": true,
+    "desktop_mobile": true,
+    "page_errors": []
+  },
+  "live": {
+    "original_blocked_probe_now_passes": true,
+    "waiting_work_resumed": true,
+    "mcp_five_tools_passed": true,
+    "canonical_integrity_and_forget_preserved": true,
+    "installed_files_verified": 5665,
+    "client_settings_unchanged": true
+  },
+  "private_raw_evidence_committed": false,
+  "public_installer_rebuilt": false
+}

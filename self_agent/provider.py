@@ -33,6 +33,21 @@ EXTRACTION = '''从用户与智能体的会话中提取值得长期保留的个�
 同一主体同一方面同一含义只输出一条：“我阅读技术说明喜欢中文，所有项目默认中文”是一条 personal preference，不能拆成个人偏好和项目偏好两条。
 “这次用中文，之后仍按长期偏好”只描述这次，不能重复提炼没有明说的长期偏好。'''
 
+
+def validation_reason(exc):
+    if isinstance(exc,json.JSONDecodeError):return 'invalid_json'
+    import re
+    value=str(exc)
+    return value if re.fullmatch(r'[a-z_]{1,80}',value) else 'validation_failed'
+
+def extraction_repair(reason):
+    return ('上一条没有通过 '+reason+' 校验。请重新输出完整 JSON 对象，不要 Markdown 围栏或解释。'
+            '必须有 memories 数组；每条必须包含 content、kind、evidence、explicit、scope。'
+            'kind 只能为 preference/fact/decision/procedure；explicit 必须为布尔值；scope 只能为 personal/project/session。'
+            'evidence 必须是最初输入中逐字存在的连续原文，不要补写引文或编造事实。'
+            '没有用户明确完整年月日及逐字 deadline_evidence 时 valid_until 必须 null。'
+            '若上次 JSON 未闭合，请精简陈述或减少条目，但必须返回完整对象；不要输出半个字符串。')
+
 class XjtuProvider:
     def __init__(self, config,observer=None):
         self.config=config
@@ -68,13 +83,14 @@ class XjtuProvider:
         try:self.preflight()
         except Exception:self._catalog_until=max(self._catalog_until,time.monotonic()+30)
 
-    def reject_quality(self):
+    def reject_quality(self,code='validation_failed'):
         model=getattr(self._context,'model',None)
         if self.pool.enabled and model:
             with self._route_lock:
-                self.pool.failure(model,'model_quality_rejected')
+                self.pool.quality_failure(model,code)
+                self._context.quality_avoid=(model,)
                 self._catalog_until=0;self._catalog_error=None;self._route=None
-                self._health('blocked','model_quality_rejected')
+                self._health('fallback' if self.pool.active!=self.config.xjtu_model else 'ready')
 
     def retry_after_quality_failure(self):
         return self.pool.enabled and any(n in self._routes and self.pool.models.get(n,{}).get('until',0)<=time.time() for n in self.pool.names)
@@ -113,7 +129,7 @@ class XjtuProvider:
                 self._route=None
                 try:
                     self._routes=client.list_text_models()
-                    route,reason=self.pool.select(self._routes)
+                    route,reason=self.pool.select(self._routes,getattr(self._context,'quality_avoid',()))
                     if route is None:raise ProviderUnavailable(reason)
                     self._route=route
                 except Exception as exc:
@@ -132,6 +148,7 @@ class XjtuProvider:
         for attempt in range(len(self.pool.names)):
             with self._route_lock:
                 client=self._client();route=self._route
+                self._context.quality_avoid=()
             try:answer=client.complete(prompt,model=route)
             except TopError as exc:
                 receipt=exc.rate_receipt or {}
@@ -163,12 +180,12 @@ class XjtuProvider:
                 return result
             except (ValueError,TypeError) as exc:
                 if attempt:
-                    self._save_failed_extraction(text,response)
-                    self.reject_quality()
+                    self._save_failed_extraction(text,response,validation_reason(exc))
+                    self.reject_quality(validation_reason(exc))
                     raise ExtractionError('extraction_validation_failed') from None
                 messages += [
                     {'role':'assistant','content':response},
-                    {'role':'user','content':'上一条没有通过结构或原文引文校验。请严格使用 memories 数组、content/kind/evidence/explicit 字段，evidence 必须是最初输入中逐字存在的连续片段；没有依据的条目请删除。仅输出 JSON。'}
+                    {'role':'user','content':extraction_repair(validation_reason(exc))}
                 ]
 
     def reconcile(self,item,candidates):
@@ -187,11 +204,11 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
                 result=self._validate_reconciliation(item,candidates,parse_json(reply))
                 self.validated()
                 return result
-            except (ValueError,TypeError):
+            except (ValueError,TypeError) as exc:
                 if attempt:
-                    self.reject_quality()
+                    self.reject_quality(validation_reason(exc))
                     raise ReconciliationError('reconciliation_validation_failed') from None
-                messages += [{'role':'assistant','content':reply},{'role':'user','content':'上一条结构或范围校验未通过。target_id 只能是相同 project 的已有记忆；overrides_id 仅用于项目例外引用个人默认，其他情况必须 null。supersedes 的 evidence 必须是 new.evidence 的连续原文片段。重新输出严格 JSON。'}]
+                messages += [{'role':'assistant','content':reply},{'role':'user','content':'上一条未通过 '+validation_reason(exc)+' 校验。target_id 只能是相同 project 的已有记忆；overrides_id 仅用于项目例外引用个人默认，其他情况必须 null。supersedes 的 evidence 必须是 new.evidence 的连续原文片段。重新输出严格 JSON。'}]
 
     def _validate_reconciliation(self,item,candidates,result):
         relation=result.get('relation');target=result.get('target_id')
@@ -210,7 +227,7 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
             if not item.get('explicit') or not isinstance(evidence,str) or not evidence.strip() or evidence not in item.get('evidence',''):raise ValueError('ungrounded_replacement')
         return {'relation':relation,'target_id':target,'target_version':old['version'] if old else None,'overrides_id':override['id'] if override else None}
 
-    def _save_failed_extraction(self,text,response):
+    def _save_failed_extraction(self,text,response,code='validation_failed'):
         from pathlib import Path
         import hashlib,time
         directory=self.config.data_dir/'provider-evidence'
@@ -219,7 +236,7 @@ new.project 为空时 overrides_id 必须 null。relation=supersedes/equivalent 
         for file in old[:-19]:file.unlink()
         name=hashlib.sha256(text.encode()).hexdigest()[:20]+'-'+str(time.time_ns())+'.json'
         file=directory/name
-        file.write_text(json.dumps({'response':response[:1024**2],'stage':'validated-complete-reply'},ensure_ascii=False),'utf-8')
+        file.write_text(json.dumps({'response':response[:1024**2],'stage':'validated-complete-reply','validation_code':code},ensure_ascii=False),'utf-8')
         file.chmod(0o600)
 
 

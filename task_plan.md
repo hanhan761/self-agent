@@ -128,3 +128,8 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 2. Display current model, grant/cooldown/verification status and switch history; preserve unknown results and warn visibly — implemented; browser verification follows.
 3. Verify actual authorized backups, meaningful failure/lifecycle/restore regressions, checksum release and current-device update — in progress. Actual qwen-plus-latest extraction passed; other evaluated candidates did not pass and are excluded from the default pool.
 4. Completed: same-account explicit pool enabled on current device; actual healthy backup admitted, unavailable candidates excluded, 197 tests and actual browser/MCP/integrity checks passed. Runtime manifest verified; source synchronization follows.
+
+## Model-pool false outage — 2026-11-01
+1. Reproduce live blocked state, verify same-account native availability and classify retained validation failures — complete.
+2. Add red regression cases; separate per-source quality risk from model availability; migrate legacy quality-only cooldown and clarify UI — complete; 200 tests passed.
+3. Update current device with backup/checksums; verify original probe green, resumed pending work, actual browser and MCP — complete; source synchronization follows.

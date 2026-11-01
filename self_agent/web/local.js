@@ -90,24 +90,26 @@ function renderModelStatus(problems){
  const h=info.provider.health||{},blocked=h.state==='blocked',fallback=h.state==='fallback',active=h.active_model||info.provider.model;
  const reasons={model_not_granted:'候选模型均未获使用权限',models_cooling_down:'候选模型都在故障冷却中',account_unavailable:'当前交晓智账号暂时无法调用',catalog_unavailable:'暂时无法核验模型权限',provider_request_failed:'模型请求失败，正在重新选择',rate_limited:'当前模型限流，正在重新选择',model_quality_rejected:'模型回复未通过校验，正在重新选择',native_account_not_allowed:'登录账号已变化，需要重新确认授权',xjcode_login_required:'需要重新登录交晓智',xjcode_login_unavailable:'本机校园登录暂不可用'};
  const last=(h.switches||[]).at(-1),retryingPreferred=!blocked&&!fallback&&last?.reason==='preferred_recovered'&&Date.now()/1000-last.at<3600;
+ const qualitySwitch=fallback&&last?.reason==='model_quality_rejected'&&(h.models||[]).some(m=>m.name===h.preferred_model&&m.granted&&m.cooldown_until<=Date.now()/1000);
  const confirmed=(h.models||[]).some(m=>m.name===active&&m.last_validated>=last?.at);
- const notice=$('#processing-notice');notice.hidden=!blocked&&!fallback&&!problems&&!retryingPreferred;notice.dataset.tone=retryingPreferred&&confirmed&&!problems?'success':'warning';
- notice.textContent=(blocked?(reasons[h.reason]||'自动整理暂时不可用')+'。新对话继续保存在本机，待可用模型恢复后整理。':fallback?'优先模型 '+h.preferred_model+' 暂不可用，已自动切换到备用模型 '+active+'。':retryingPreferred?(confirmed?'已恢复使用优先模型 ':'正在重新验证优先模型 ')+active+'。':'')+(problems?'有 '+problems+' 份资料未完成整理，可在下方“后台动态”查看。':'');
+ const quality=(h.models||[]).filter(m=>m.granted&&m.quality_warning);
+ const notice=$('#processing-notice');notice.hidden=!blocked&&!fallback&&!problems&&!retryingPreferred&&!quality.length;notice.dataset.tone=retryingPreferred&&confirmed&&!problems?'success':'warning';
+ notice.textContent=(blocked?(reasons[h.reason]||'自动整理暂时不可用')+'。新对话继续保存在本机，待可用模型恢复后整理。':fallback?(qualitySwitch?'上一份资料校验未过，已改用备用模型 ':'优先模型 '+h.preferred_model+' 暂不可用，已自动切换到备用模型 ')+active+'。':retryingPreferred?(confirmed?'已恢复使用优先模型 ':'正在重新验证优先模型 ')+active+'。':'')+(quality.length?'模型接口可调用，部分资料的记忆校验未通过，已单独保留，不会因此暂停其他资料。':'')+(problems?'有 '+problems+' 份资料未完成整理，可在下方“后台动态”查看。':'');
  $('#model-status-summary').textContent=(blocked?'整理暂停 · '+(h.active_model?'上次模型 ':'优先模型 '):'当前模型 ')+active+' · '+(h.auto_switch?'自动切换已开启':'固定模型')+(h.checked_at?' · 最近检查 '+time(h.checked_at):'');
  const body=$('#model-status-body');body.replaceChildren();
  for(const m of h.models||[]){
   const row=element('div',undefined,'model-status-row'),cooling=m.cooldown_until>Date.now()/1000;
   row.append(element('strong',m.name),element('span',m.name===active?(blocked?'上次选择':'当前使用'):m.name===h.preferred_model?'优先':'备用','muted'));
-  row.append(element('span',cooling?'冷却至 '+time(m.cooldown_until):!m.granted?'暂无权限':m.last_validated&&m.last_validated>=(m.last_failure||0)?'最近校验 '+time(m.last_validated):'已授权，等待实际回复验证','muted'));
+  row.append(element('span',cooling?'冷却至 '+time(m.cooldown_until):!m.granted?'暂无权限':m.quality_warning?'接口可调用 · 资料校验有异常':m.last_validated&&m.last_validated>=(m.last_failure||0)?'最近校验 '+time(m.last_validated):'已授权，等待实际回复验证','muted'));
   body.append(row);
  }
- const labels={model_not_granted:'权限不可用',provider_request_failed:'请求失败',rate_limited:'限流',model_quality_rejected:'回复未通过校验',preferred_recovered:'重新尝试优先模型'};
+ const labels={model_not_granted:'权限不可用',provider_request_failed:'请求失败',rate_limited:'限流',model_quality_rejected:'单份资料校验未过，尝试其他模型',preferred_recovered:'重新尝试优先模型'};
  for(const e of (h.switches||[]).slice(-5).reverse())body.append(element('p',time(e.at)+' · '+e.from+' → '+e.to+' · '+(labels[e.reason]||'模型切换'),'model-switch-event'));
 }
 function renderJobs(){
  const pending=(info.capacity?.pending_jobs||0)+(info.capacity?.capture_batches||0);const problems=(info.job_counts?.failed||0)+(info.job_counts?.uncertain||0);$('#activity-label').textContent=problems?problems+' 项未完成'+(pending?' · '+pending+' 项'+(info.provider.health?.state==='blocked'?'等待模型恢复':'等待整理'):''):pending?pending+' 项'+(info.provider.health?.state==='blocked'?'等待模型恢复':'正在整理'):info.provider.health?.state==='blocked'?'整理暂停':info.provider.health?.state==='fallback'?'备用模型工作中':'已同步';const list=$('#job-list');list.replaceChildren();
  const names={done:'整理完成',pending:'等待整理',running:'正在整理',history_pending:'历史资料等待整理',history_running:'历史资料正在整理',failed:'未能完成整理',uncertain:'处理结果待核实'};
- for(const job of (info.jobs||[]).slice(0,12)){const row=element('div',undefined,'job-row');row.append(element('span',names[job.state]||job.state),element('span',time(job.created),'muted'));if(['failed','uncertain'].includes(job.state))row.append(button('重试',async()=>{if(job.state==='uncertain'&&!confirm('上次结果不明，重试可能再次消耗模型额度。继续？'))return;await api('/v1/jobs/'+job.id+'/retry',{method:'POST',body:'{}'});await refresh();}));list.append(row);}
+ for(const job of (info.jobs||[]).slice(0,12)){const row=element('div',undefined,'job-row');row.append(element('span',job.state==='failed'&&job.error?.startsWith('ExtractionError')?'资料提炼校验未通过':job.state==='failed'&&job.error?.startsWith('ReconciliationError')?'记忆合并校验未通过':names[job.state]||job.state),element('span',time(job.created),'muted'));if(['failed','uncertain'].includes(job.state))row.append(button('重试',async()=>{if(job.state==='uncertain'&&!confirm('上次结果不明，重试可能再次消耗模型额度。继续？'))return;await api('/v1/jobs/'+job.id+'/retry',{method:'POST',body:'{}'});await refresh();}));list.append(row);}
 }
 function closeReview(){resizingReview=false;document.body.classList.remove('resizing-review');detailRevision++;currentMemory=null;$('#review-detail').hidden=true;$('#review-panel').hidden=true;$('#review-panel').classList.remove('is-open');$('#app').classList.remove('review-open','review-expanded');$('#expand-review').textContent='展开阅读';$('#expand-review').setAttribute('aria-expanded','false');document.querySelectorAll('.is-current').forEach(n=>n.classList.remove('is-current'));}
 async function openDetail(id){
