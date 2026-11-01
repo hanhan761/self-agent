@@ -170,7 +170,8 @@ class XjtuProvider:
             return answer
 
     def extract(self, text):
-        messages=[{'role':'system','content':EXTRACTION},{'role':'user','content':text}]
+        from .value import VALUE_GUIDANCE
+        messages=[{'role':'system','content':EXTRACTION+VALUE_GUIDANCE},{'role':'user','content':text}]
         # One bounded format repair is permitted only after a confirmed complete reply.
         for attempt in range(2):
             response=self.complete(messages)
@@ -299,7 +300,7 @@ def validate_extraction(text,response,require_scope=False):
             if not isinstance(until,(int,float)) or not math.isfinite(until):raise ValueError('invalid_deadline')
             start=datetime(y,month,day,tzinfo=zone).timestamp()
             if not start<=until<=start+86400:raise ValueError('deadline_date_mismatch')
-        result.append(item)
+        if not isinstance(messages,list) or user_evidence:result.append(item)
     return result
 
 def parse_json(value):

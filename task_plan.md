@@ -133,3 +133,11 @@ Host trust review is resolved (all three enabled/trusted). Genuine current-threa
 1. Reproduce live blocked state, verify same-account native availability and classify retained validation failures — complete.
 2. Add red regression cases; separate per-source quality risk from model availability; migrate legacy quality-only cooldown and clarify UI — complete; 200 tests passed.
 3. Update current device with backup/checksums; verify original probe green, resumed pending work, actual browser and MCP — complete; source synchronization follows.
+
+## Latest history and useful-memory curation — 2026-11-01
+1. Snapshot canonical memory and recent transcripts; identify unseen user observations and inspect low-value examples.
+2. Absorb only missing recent information with original roles, timestamps, project isolation and native verified responses.
+3. Reversibly archive confidently low-value items; tighten future admission while retaining actionable project requirements and manual memory.
+4. Verify lifecycle/restore/recall, update current runtime, and synchronize only code and technical docs.
+
+Completed: snapshot/incremental native absorption, conservative reviewed curation, future useful-memory admission, reversible history UI, and current-device checksum update. Validation: 230 tests; actual native/recall/browser/MCP and canonical preservation passed. Only code and technical docs are synchronized; public installer remains unchanged.

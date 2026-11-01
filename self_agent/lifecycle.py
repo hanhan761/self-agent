@@ -104,6 +104,10 @@ class Lifecycle:
             if legacy and self.store.get(uid,legacy)['version']!=legacy_version:raise ValueError('concurrent_memory_change')
             applied=db.execute('SELECT memory_id FROM learning_applied WHERE user_id=? AND source_id=? AND fingerprint=?',(uid,source['id'],fp)).fetchone()
             if applied and not legacy:return self.store.get(uid,applied[0]) if applied[0] else None
+            from .value import automatic_rejection
+            if automatic_rejection(source,item):
+                db.execute('INSERT OR IGNORE INTO learning_applied VALUES(?,?,?,NULL)',(uid,source['id'],fp))
+                return None
             if item.get('scope')=='session' or item.get('temporary'):return None
             targets={m['id']:m for m in candidates}
             relation=decision.get('relation','independent');tid=decision.get('target_id');old=targets.get(tid)
@@ -211,6 +215,27 @@ class Lifecycle:
             self.store.update(uid,mid,status='active',version=version,explicit_restore=True)
             self.record(uid,'restore',before)
         return self.store.get(uid,mid)
+
+    def archive_low_value(self,uid,items):
+        """Versioned retirement; undo restores the exact prior active/candidate state."""
+        allowed={'vague','one_off','obsolete_status','unsupported','duplicate'}
+        if not items or len(items)>100 or len({x['id'] for x in items})!=len(items):raise ValueError('invalid_archive_selection')
+        with self.store.tx() as db:
+            rows=[]
+            for item in items:
+                old=self.store.get(uid,item['id'])
+                if old['version']!=item['version']:raise ValueError('concurrent_memory_change')
+                if old['status'] not in ('active','candidate') or item.get('reason') not in allowed:raise ValueError('invalid_archive_item')
+                source=db.execute('SELECT kind FROM sources WHERE id=? AND user_id=?',(old['source_id'],uid)).fetchone()
+                if not source or source['kind']=='manual':raise ValueError('manual_memory_protected')
+                rows.append((item,old))
+            changes=[]
+            for item,old in rows:
+                before={old['id']:self.snapshot(old['id'])}
+                self.store.update(uid,old['id'],status='superseded',version=old['version'])
+                self.metadata(old['id'],observed_at=old['observed_at'],valid_until=old['valid_until'],topic=old['topic'],reason='low_value:'+item['reason'])
+                changes.append({'id':old['id'],'change_id':self.record(uid,'archive_low_value',before)})
+            return {'updated':len(changes),'changes':changes}
 
     def bulk(self,uid,items,action,project=None):
         """Validate the entire selection before one atomic manual organization operation."""

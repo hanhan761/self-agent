@@ -124,6 +124,8 @@ class Engine:
         return True
 
     def prepare(self,uid,source,item,exclude=None):
+        from .value import automatic_rejection
+        if automatic_rejection(source,item):return [],{'relation':'independent'}
         scope='' if item.get('scope')=='personal' else source['project']
         try:
             nominate=getattr(self.index,'candidate_ids',self.index.search_ids)
