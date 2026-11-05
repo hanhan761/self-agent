@@ -41,11 +41,47 @@ window.memoryGrowth=(()=>{
    if(request===requestId){lastKey=query;lastFetch=Date.now();document.querySelector('#growth-summary').textContent='统计暂时不可用';}
   }finally{if(request===requestId)pendingKey='';}
  }
- period.onchange=()=>load(true);
+
+ let tokenChart=null,tokenData=null,tokenRequest=0,tokenKey='',tokenPending='',tokenFetched=0;
+ function paintTokens(){
+  if(!tokenData)return;
+  const summary=document.querySelector('#token-summary');
+  summary.textContent='今天约 '+tokenData.today.toLocaleString()+' · '+tokenData.items.length+' 天约 '+tokenData.total.toLocaleString()+(tokenData.incomplete?' · 部分记录暂不可读':'');
+  const tokenCanvas=document.querySelector('#token-chart');
+  tokenCanvas.setAttribute('aria-label','最近'+tokenData.items.length+'天记忆注入估算，共'+tokenData.total+' Token');
+  const table=document.querySelector('#token-daily-values');table.replaceChildren();
+  for(const row of tokenData.items){const tr=document.createElement('tr');for(const value of [row.date,row.tokens.toLocaleString(),row.messages]){const td=document.createElement('td');td.textContent=value;tr.append(td);}table.append(tr);}
+  if(panel.hidden||!panel.open)return;
+  const chartData={labels:tokenData.items.map(row=>row.date.slice(5).replace('-','/')),datasets:[{label:'注入 Token（估算）',data:tokenData.items.map(row=>row.tokens),backgroundColor:'#759a7c',borderRadius:3,maxBarThickness:24}]};
+  if(tokenChart){tokenChart.data=chartData;tokenChart.update('none');return;}
+  tokenChart=new Chart(tokenCanvas,{type:'bar',data:chartData,options:{
+   font:{family:fontFamily},responsive:true,maintainAspectRatio:false,animation:false,resizeDelay:80,interaction:{mode:'index',intersect:false},
+   plugins:{legend:{display:false},tooltip:{titleFont:{family:fontFamily},bodyFont:{family:fontFamily},callbacks:{title:points=>tokenData.items[points[0].dataIndex].date}}},
+   scales:{x:{grid:{display:false},border:{display:false},ticks:{autoSkip:false,maxRotation:0,color:'#718166',font:{family:'Arial',size:10},callback(value,index,ticks){const step=Math.ceil(ticks.length/7),last=ticks.length-1;return index===last||(index%step===0&&index<=last-step)?this.getLabelForValue(value):'';}}},
+    y:{beginAtZero:true,suggestedMax:1,border:{display:false},ticks:{precision:0,maxTicksLimit:5,color:'#718166',font:{family:'Arial',size:10}},grid:{color:'#edf1e7'}}}
+  }});
+ }
+ async function loadTokens(force,key=revisionKey){
+  if(!shown)return;
+  const query=period.value+'|'+key;
+  if(!force&&((tokenKey===query&&Date.now()-tokenFetched<30000)||tokenPending===query))return;
+  const request=++tokenRequest;tokenPending=query;
+  try{
+   const response=await fetch('/v1/stats/injection-tokens?days='+period.value);
+   if(!response.ok)throw Error('tokens_unavailable');
+   const result=await response.json();
+   if(request!==tokenRequest)return;
+   tokenData=result;tokenKey=query;tokenFetched=Date.now();paintTokens();
+  }catch(error){
+   if(request===tokenRequest){tokenData=null;if(tokenChart){tokenChart.destroy();tokenChart=null;}document.querySelector('#token-summary').textContent='Token 统计暂时不可用';}
+  }finally{if(request===tokenRequest)tokenPending='';}
+ }
+
+ period.onchange=()=>{load(true);loadTokens(true);};
  imports.onchange=paint;
- panel.addEventListener('toggle',()=>{if(panel.open){paint();if(chart)chart.resize();}});
+ panel.addEventListener('toggle',()=>{if(panel.open){paint();paintTokens();if(chart)chart.resize();if(tokenChart)tokenChart.resize();}});
  return {refresh(visible,key){
   const becomingVisible=visible&&!shown;shown=visible;revisionKey=key;panel.hidden=!visible;
-  if(visible){if(becomingVisible&&data){paint();if(chart)chart.resize();}load(false,key);}
+  if(visible){if(becomingVisible&&data){paint();paintTokens();if(chart)chart.resize();if(tokenChart)tokenChart.resize();}load(false,key);loadTokens(false,key);}
  }};
 })();

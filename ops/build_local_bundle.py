@@ -4,6 +4,8 @@ from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--runtime',required=True);p.add_argument('--output',default='dist');a=p.parse_args()
 root=Path(__file__).resolve().parents[1];runtime=Path(a.runtime).resolve();out=Path(a.output).resolve();out.mkdir(parents=True,exist_ok=True)
 version=tomllib.loads((root/'pyproject.toml').read_text('utf-8'))['project']['version']
+vocab=runtime/'models/tokenizers/fb374d419588a4632f3f557e76b4b70aebbca790'
+if not vocab.is_file() or hashlib.sha256(vocab.read_bytes()).hexdigest()!='446a9538cb6c348e3516120d7c08b09f57c36495e2acfffe59a5bf8b0cfb1a2d':raise ValueError('offline_tokenizer_missing_or_invalid')
 allowed={'Lib','source','models','bin','licenses'}
 files=[]
 for f in sorted(runtime.rglob('*')):

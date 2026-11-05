@@ -292,6 +292,13 @@ def create_app(config=None,*,start_worker=True,provider=None):
                           'reranking':getattr(engine.index,'reranker',None) is not None,'rerank_state':getattr(engine.index,'rerank_error','not_applicable')}
         return result
 
+    @app.get('/v1/stats/injection-tokens')
+    def injection_tokens(days:int=14,user=Depends(current)):
+        if not config.local or user['id']!=config.local_user_id:raise HTTPException(403,'仅本机知识库所有者可查看')
+        from .injection_stats import daily_injection
+        try:return daily_injection(config.data_dir,days)
+        except (ImportError,RuntimeError):raise HTTPException(503,'本机 Token 统计组件不可用')
+
     @app.get('/v1/stats/daily')
     def daily_growth(days:int=14,user=Depends(current)):
         return store.daily_growth(user['id'],days)
